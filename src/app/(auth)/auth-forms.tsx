@@ -100,7 +100,7 @@ export function SignInForm() {
         New to paisa?{" "}
         <Link
           href="/sign-up"
-          className="font-medium text-(--p-accent) hover:underline"
+          className="-my-3 inline-block py-3 font-medium text-(--p-accent) hover:underline"
         >
           Create an account
         </Link>
@@ -174,7 +174,7 @@ export function SignUpForm() {
         Already have an account?{" "}
         <Link
           href="/sign-in"
-          className="font-medium text-(--p-accent) hover:underline"
+          className="-my-3 inline-block py-3 font-medium text-(--p-accent) hover:underline"
         >
           Log in
         </Link>

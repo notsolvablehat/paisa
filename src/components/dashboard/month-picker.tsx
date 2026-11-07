@@ -1,8 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover";
-import { MONTHS_LONG, MONTHS_SHORT, addMonths, monthKey, monthLabel, parseISO } from "@/lib/dates";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/arc/popover/popover";
+import {
+  MONTHS_LONG,
+  MONTHS_SHORT,
+  addMonths,
+  monthKey,
+  monthLabel,
+  parseISO,
+} from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
 const iconBtn =
@@ -40,7 +51,12 @@ export function MonthPicker({
 
   return (
     <div className="flex items-center gap-0.5">
-      <button type="button" aria-label="Previous month" onClick={() => step(-1)} className={`${iconBtn} size-8`}>
+      <button
+        type="button"
+        aria-label="Previous month"
+        onClick={() => step(-1)}
+        className={`${iconBtn} size-8`}
+      >
         <i className="ri-arrow-left-s-line text-[20px]" aria-hidden />
       </button>
 
@@ -63,11 +79,22 @@ export function MonthPicker({
             {monthLabel(month, short)}
             {loading && <span className="sr-only"> loading</span>}
           </span>
-          <i className={cn("ri-arrow-down-s-line text-[16px] text-(--p-fg3) transition-transform", open && "rotate-180")} aria-hidden />
+          <i
+            className={cn(
+              "ri-arrow-down-s-line text-[16px] text-(--p-fg3) transition-transform",
+              open && "rotate-180",
+            )}
+            aria-hidden
+          />
         </PopoverTrigger>
         <PopoverContent align="center" className="w-[288px]! p-3!">
           <div className="mb-2 flex items-center justify-between">
-            <button type="button" aria-label="Previous year" onClick={() => setYear(year - 1)} className={`${iconBtn} size-8`}>
+            <button
+              type="button"
+              aria-label="Previous year"
+              onClick={() => setYear(year - 1)}
+              className={`${iconBtn} size-8`}
+            >
               <i className="ri-arrow-left-s-line text-[18px]" aria-hidden />
             </button>
             <span className="text-sm font-medium tabular-nums">{year}</span>
@@ -81,7 +108,11 @@ export function MonthPicker({
               <i className="ri-arrow-right-s-line text-[18px]" aria-hidden />
             </button>
           </div>
-          <div role="group" aria-label={`Months of ${year}`} className="grid grid-cols-3 gap-1">
+          <div
+            role="group"
+            aria-label={`Months of ${year}`}
+            className="grid grid-cols-3 gap-1"
+          >
             {MONTHS_SHORT.map((label, i) => {
               const key = monthKey(year, i + 1);
               const future = key > current;
@@ -104,7 +135,10 @@ export function MonthPicker({
                 >
                   {label}
                   {isCurrent && !selected && (
-                    <span className="absolute bottom-1.5 left-1/2 size-1 -translate-x-1/2 rounded-full bg-(--p-accent)" aria-hidden />
+                    <span
+                      className="absolute bottom-1.5 left-1/2 size-1 -translate-x-1/2 rounded-full bg-(--p-accent)"
+                      aria-hidden
+                    />
                   )}
                 </button>
               );
@@ -122,7 +156,13 @@ export function MonthPicker({
         </PopoverContent>
       </Popover>
 
-      <button type="button" aria-label="Next month" onClick={() => step(1)} disabled={month >= current} className={`${iconBtn} size-8`}>
+      <button
+        type="button"
+        aria-label="Next month"
+        onClick={() => step(1)}
+        disabled={month >= current}
+        className={`${iconBtn} size-8`}
+      >
         <i className="ri-arrow-right-s-line text-[20px]" aria-hidden />
       </button>
     </div>

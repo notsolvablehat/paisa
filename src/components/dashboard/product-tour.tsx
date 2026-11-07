@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type RefObject,
 } from "react";
 import { Coachmark } from "coachmark";
@@ -92,6 +93,13 @@ const STEPS: TourStep[] = [
 ];
 
 const START_EVENT = "paisa:start-tour";
+/** Matches Tailwind's `max-sm`. */
+const COMPACT = "(max-width: 639px)";
+const subscribeCompact = (cb: () => void) => {
+  const q = window.matchMedia(COMPACT);
+  q.addEventListener("change", cb);
+  return () => q.removeEventListener("change", cb);
+};
 const QUEUE_KEY = "paisa:tour";
 
 /** Start the tour on the current (overview) page. */
@@ -123,6 +131,11 @@ export function ProductTour() {
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
   const pendingOpen = useRef(false);
+  const compact = useSyncExternalStore(
+    subscribeCompact,
+    () => window.matchMedia(COMPACT).matches,
+    () => false,
+  );
 
   const start = useCallback(() => {
     const found = STEPS.flatMap((step) => {
@@ -173,11 +186,13 @@ export function ProductTour() {
             align={step.align ?? "center"}
             sideOffset={20}
             collisionPadding={16}
-            className="z-[70]"
+            // Phones: no room beside tall sections, so the tip becomes a card pinned to the bottom
+            // (overrides Base UI's inline position); the target is scrolled to the top instead.
+            className="z-[70] max-sm:fixed! max-sm:inset-x-4! max-sm:top-auto! max-sm:bottom-[calc(16px+env(safe-area-inset-bottom))]! max-sm:[transform:none]!"
           >
             <Coachmark.Popup
               className={cn(
-                "relative flex w-[min(320px,calc(100vw-32px))] origin-(--transform-origin) flex-col gap-2 rounded-[20px] border border-(--p-line) bg-(--p-surface) p-5 text-(--p-ink) shadow-(--p-shadow-floating) outline-none",
+                "relative flex w-[min(320px,calc(100vw-32px))] origin-(--transform-origin) max-sm:w-full flex-col gap-2 rounded-[20px] border border-(--p-line) bg-(--p-surface) p-5 text-(--p-ink) shadow-(--p-shadow-floating) outline-none",
                 "transition-[opacity,scale] duration-200 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0",
               )}
             >
@@ -247,7 +262,10 @@ export function ProductTour() {
       onOpenChange={setOpen}
       stepIndex={index}
       onStepChange={setIndex}
-      scrollIntoView={{ behavior: "smooth", block: "center" }}
+      scrollIntoView={{
+        behavior: "smooth",
+        block: compact ? "start" : "center",
+      }}
     >
       <Coachmark.Backdrop
         className={cn(

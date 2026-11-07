@@ -15,7 +15,10 @@ export function GoalDialog() {
   const setOpen = useUI((s) => s.setGoalDialogOpen);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent title="New goal" description="Money you assign is earmarked, not moved. It comes off your free balance.">
+      <DialogContent
+        title="New goal"
+        description="Money you assign is earmarked, not moved. It comes off your free balance."
+      >
         {open && <GoalForm onDone={() => setOpen(false)} />}
       </DialogContent>
     </Dialog>
@@ -35,12 +38,31 @@ function GoalForm({ onDone }: { onDone: () => void }) {
       onSubmit={(e) => {
         e.preventDefault();
         if (!ready) return;
-        create.mutate({ name: name.trim(), target: target!, monthly: monthly! }, { onSuccess: onDone });
+        create.mutate(
+          { name: name.trim(), target: target!, monthly: monthly! },
+          { onSuccess: onDone },
+        );
       }}
       className="flex flex-col gap-4"
     >
-      <Input label="What are you saving for?" autoFocus value={name} maxLength={80} onChange={(e) => setName(e.target.value)} placeholder="e.g. MacBook Air" />
-      <MoneyInput label="Price" currency="INR" currencies={["INR"]} locale="en-IN" quickAdd={[]} value={target} onValueChange={setTarget} max={MAX_PAISE} />
+      <Input
+        label="What are you saving for?"
+        autoFocus
+        value={name}
+        maxLength={80}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="e.g. MacBook Air"
+      />
+      <MoneyInput
+        label="Price"
+        currency="INR"
+        currencies={["INR"]}
+        locale="en-IN"
+        quickAdd={[]}
+        value={target}
+        onValueChange={setTarget}
+        max={MAX_PAISE}
+      />
       <MoneyInput
         label="Set aside per month"
         currency="INR"
@@ -50,7 +72,9 @@ function GoalForm({ onDone }: { onDone: () => void }) {
         value={monthly}
         onValueChange={setMonthly}
         max={MAX_PAISE}
-        error={tooBig ? "Monthly amount can't be more than the price" : undefined}
+        error={
+          tooBig ? "Monthly amount can't be more than the price" : undefined
+        }
       />
       <div className="mt-1 flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onDone}>

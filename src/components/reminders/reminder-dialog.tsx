@@ -32,13 +32,28 @@ export function ReminderDialog({
         description="Changes apply to this occurrence and the ones after it."
         className="w-[min(calc(100vw-32px),520px)]! [@media(min-height:720px)]:overflow-visible!"
       >
-        {reminder && <ReminderForm key={reminder.id} reminder={reminder} categories={categories} onDone={onClose} />}
+        {reminder && (
+          <ReminderForm
+            key={reminder.id}
+            reminder={reminder}
+            categories={categories}
+            onDone={onClose}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
 }
 
-function ReminderForm({ reminder, categories, onDone }: { reminder: ReminderRow; categories: Category[]; onDone: () => void }) {
+function ReminderForm({
+  reminder,
+  categories,
+  onDone,
+}: {
+  reminder: ReminderRow;
+  categories: Category[];
+  onDone: () => void;
+}) {
   const [name, setName] = useState(reminder.name);
   const [amount, setAmount] = useState<number | null>(reminder.amount);
   const [dueOn, setDueOn] = useState(reminder.dueOn);
@@ -53,11 +68,35 @@ function ReminderForm({ reminder, categories, onDone }: { reminder: ReminderRow;
       onSubmit={(e) => {
         e.preventDefault();
         if (!ready || save.isPending) return;
-        save.mutate({ billId: reminder.id, name: name.trim(), amount: amount!, dueOn, recurrence, categoryId }, { onSuccess: onDone });
+        save.mutate(
+          {
+            billId: reminder.id,
+            name: name.trim(),
+            amount: amount!,
+            dueOn,
+            recurrence,
+            categoryId,
+          },
+          { onSuccess: onDone },
+        );
       }}
     >
-      <Input label="What is it?" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
-      <MoneyInput label="Amount" currency="INR" currencies={["INR"]} locale="en-IN" quickAdd={[]} value={amount} onValueChange={setAmount} max={MAX_PAISE} />
+      <Input
+        label="What is it?"
+        value={name}
+        maxLength={80}
+        onChange={(e) => setName(e.target.value)}
+      />
+      <MoneyInput
+        label="Amount"
+        currency="INR"
+        currencies={["INR"]}
+        locale="en-IN"
+        quickAdd={[]}
+        value={amount}
+        onValueChange={setAmount}
+        max={MAX_PAISE}
+      />
       <div className="grid gap-4 sm:grid-cols-2">
         <DatePicker
           type="button"
@@ -69,7 +108,13 @@ function ReminderForm({ reminder, categories, onDone }: { reminder: ReminderRow;
         />
         <MorphSelect
           label="Category"
-          items={categories.map((c) => ({ value: c.id, label: c.name, icon: <i className={c.icon} style={{ color: c.color }} aria-hidden /> }))}
+          items={categories.map((c) => ({
+            value: c.id,
+            label: c.name,
+            icon: (
+              <i className={c.icon} style={{ color: c.color }} aria-hidden />
+            ),
+          }))}
           value={categoryId}
           onValueChange={setCategoryId}
           searchable
@@ -78,7 +123,14 @@ function ReminderForm({ reminder, categories, onDone }: { reminder: ReminderRow;
       </div>
       <div className="flex items-center gap-3">
         <span className="text-sm font-medium">Repeats</span>
-        <Segmented<Recurrence> ariaLabel="Repeats" options={RECURRENCES} value={recurrence} onChange={setRecurrence} />
+        <Segmented<Recurrence>
+          fill
+          className="flex-1"
+          ariaLabel="Repeats"
+          options={RECURRENCES}
+          value={recurrence}
+          onChange={setRecurrence}
+        />
       </div>
       <div className="mt-1 flex justify-end gap-2 border-t border-(--p-line) pt-4">
         <Button type="button" variant="ghost" onClick={onDone}>

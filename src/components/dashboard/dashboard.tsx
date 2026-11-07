@@ -41,8 +41,14 @@ function OverviewTitle({ data }: { data: DashboardData }) {
   const setMonth = useUI((s) => s.setMonth);
   return (
     <div className="-mb-[clamp(16px,2.5cqw,40px)] flex flex-wrap items-center justify-between gap-3 px-1">
-      <h1 className="font-display text-[clamp(28px,3.2cqw,36px)] font-normal tracking-[-.03em]">Overview</h1>
-      <MonthPicker month={data.month} current={data.today.slice(0, 7)} onChange={setMonth} />
+      <h1 className="font-display text-[clamp(28px,3.2cqw,36px)] font-normal tracking-[-.03em]">
+        Overview
+      </h1>
+      <MonthPicker
+        month={data.month}
+        current={data.today.slice(0, 7)}
+        onChange={setMonth}
+      />
     </div>
   );
 }

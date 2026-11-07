@@ -461,8 +461,12 @@ export function DateRangePicker({ value, defaultValue = null, onChange, label = 
   useEffect(() => {
     if (!open) return;
     const down = (event: PointerEvent) => { if (!rootRef.current?.contains(event.target as Node)) close(false); };
+    // paisa fix: opening can leave focus on <body>, where the root's onKeyDown never sees Escape.
+    // (Escape inside the root is handled there and stops propagating, so this never double-fires.)
+    const key = (event: KeyboardEvent) => { if (event.key === "Escape" && !event.defaultPrevented) close(true); };
     document.addEventListener("pointerdown", down);
-    return () => document.removeEventListener("pointerdown", down);
+    document.addEventListener("keydown", key);
+    return () => { document.removeEventListener("pointerdown", down); document.removeEventListener("keydown", key); };
   }, [close, open]);
 
   const onRootKey = (event: ReactKeyboardEvent<HTMLDivElement>) => {

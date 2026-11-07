@@ -103,12 +103,14 @@ scripts/seed-demo.ts, seed-history.ts
 - Header: logo, nav (Overview / Transactions / Reminders), ExpandingSearch (wrapped in a fixed-width div so results aren't cramped), Add (Ctrl/⌘K), ThemeSwitch (round, View Transitions reveal), sign out. Mobile: nav row under the header, FAB for add.
 - Dialog content with a MorphSelect inside: add `[@media(min-height:720px)]:overflow-visible!` so the list isn't clipped. Use `onOpenAutoFocus={e => e.preventDefault()}` when you focus a field yourself.
 - Tailwind utilities lose to unlayered CSS-module rules — use the `!` suffix to override uiarc styles.
+- **Mobile** (checked at 360 / 390 / 768 / 1280): no horizontal scroll at any width. `Segmented fill` stretches tabs to the container instead of side-scrolling. Hover-only reveals are gated on `[@media(hover:hover)_and_(pointer:fine)]`, never on a width breakpoint (touch tablets can't hover). Use `<TapOrClick />` in "Click to…" hints. List-page tables get `.list-table` (rules in `globals.css`) so phone cards stay two tidy lines. On touch screens, text inputs are forced to ≥16px (iOS focus zoom). On phones the tour tip is pinned to the bottom and targets scroll to the top (`[data-tour]` scroll-margin).
 
 ## uiarc notes
 
 - Add components with `npx shadcn@latest add @uiarc/<name>` (registry in `components.json`; full catalogue at `https://uiarc.dev/r/registry.json`). Read the copied source for props — they differ from shadcn.
 - Local fixes to re-apply if a component is re-installed:
   - `dialog`, `tabs`: `render={<motion.div/>}` → `asChild` + `<motion.div>` child (Radix 1.3 has no `render`). `tooltip`: Trigger needs `asChild`.
+  - `date-range-picker`: a document-level Escape listener while open (opening leaves focus on `<body>`, so the root's onKeyDown missed it).
   - `morph-select.module.css`: `.options`/`.group` `grid-template-columns: minmax(0,1fr)` and `.option { min-width: 0 }` so long labels/meta don't overflow the panel.
 - `next.config.ts` keeps `@tailwindcss/turbopack` off `*.module.css` (uiarc modules use `:global()`).
 - `DonutChart` root is a size container: don't put it in an `items-center` flex column (it collapses to 0 width).

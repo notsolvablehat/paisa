@@ -33,15 +33,26 @@ import { cn } from "@/lib/utils";
 import { useUI, type Mode } from "@/stores/ui";
 import { Segmented } from "./primitives";
 
-const MODES = ["Spend", "Income", "Goal contribution", "Reminder"] as const satisfies readonly Mode[];
-const MODE_LABELS: Record<Mode, string> = { Spend: "Spend", Income: "Income", "Goal contribution": "Goal", Reminder: "Reminder" };
+const MODES = [
+  "Spend",
+  "Income",
+  "Goal contribution",
+  "Reminder",
+] as const satisfies readonly Mode[];
+const MODE_LABELS: Record<Mode, string> = {
+  Spend: "Spend",
+  Income: "Income",
+  "Goal contribution": "Goal",
+  Reminder: "Reminder",
+};
 
 /** ISO "2026-11-07" ⇄ local Date at midnight (no timezone drift). */
 const isoToDate = (iso: string) => {
   const { y, m, d } = parseISO(iso);
   return new Date(y, m - 1, d);
 };
-const dateToIso = (dt: Date) => toISO({ y: dt.getFullYear(), m: dt.getMonth() + 1, d: dt.getDate() });
+const dateToIso = (dt: Date) =>
+  toISO({ y: dt.getFullYear(), m: dt.getMonth() + 1, d: dt.getDate() });
 
 export function QuickAdd({ data }: { data: DashboardData }) {
   const modal = useUI((s) => s.modal);
@@ -70,20 +81,30 @@ function QuickAddForm({ data }: { data: DashboardData }) {
   const editing = Boolean(prefill.editTxId);
 
   const openGoals = data.goals.filter((g) => g.assigned < g.target);
-  const defaultCat = prefill.categoryId ?? data.categories.find((c) => c.name === "Food")?.id ?? data.categories[0]?.id ?? "";
+  const defaultCat =
+    prefill.categoryId ??
+    data.categories.find((c) => c.name === "Food")?.id ??
+    data.categories[0]?.id ??
+    "";
 
   const [mode, setMode] = useState<Mode>(initialMode);
   const [amount, setAmount] = useState<number | null>(prefill.amount ?? null);
   const [note, setNote] = useState(prefill.note ?? "");
   const [cat, setCat] = useState(defaultCat);
   const [source, setSource] = useState<IncomeSource>("Salary");
-  const [goalId, setGoalId] = useState(prefill.goalId ?? openGoals[0]?.id ?? "");
+  const [goalId, setGoalId] = useState(
+    prefill.goalId ?? openGoals[0]?.id ?? "",
+  );
   const [remName, setRemName] = useState("");
   const [remRec, setRemRec] = useState<Recurrence>("Monthly");
   const [custom, setCustom] = useState(false);
   const [cName, setCName] = useState("");
-  const [cIcon, setCIcon] = useState<(typeof CUSTOM_ICONS)[number]>(CUSTOM_ICONS[0]);
-  const [cColor, setCColor] = useState<(typeof CUSTOM_COLORS)[number]>(CUSTOM_COLORS[0]);
+  const [cIcon, setCIcon] = useState<(typeof CUSTOM_ICONS)[number]>(
+    CUSTOM_ICONS[0],
+  );
+  const [cColor, setCColor] = useState<(typeof CUSTOM_COLORS)[number]>(
+    CUSTOM_COLORS[0],
+  );
   const [date, setDate] = useState<string | null>(prefill.date ?? null);
   const [error, setError] = useState<string | undefined>();
   const amountRef = useRef<HTMLInputElement>(null);
@@ -94,7 +115,8 @@ function QuickAddForm({ data }: { data: DashboardData }) {
     return () => cancelAnimationFrame(id);
   }, []);
 
-  const effectiveDate = date ?? (mode === "Reminder" ? addDays(data.today, 7) : data.today);
+  const effectiveDate =
+    date ?? (mode === "Reminder" ? addDays(data.today, 7) : data.today);
 
   const spend = useAction(addSpend, { success: "Spend added" });
   const edit = useAction(updateSpend, { success: "Changes saved" });
@@ -102,7 +124,12 @@ function QuickAddForm({ data }: { data: DashboardData }) {
   const contrib = useAction(contributeToGoal);
   const bill = useAction(addBill, { success: "Reminder added" });
   const newCat = useAction(createCategory, { success: "Category created" });
-  const pending = spend.isPending || edit.isPending || inc.isPending || contrib.isPending || bill.isPending;
+  const pending =
+    spend.isPending ||
+    edit.isPending ||
+    inc.isPending ||
+    contrib.isPending ||
+    bill.isPending;
 
   const categoryItems = useMemo(
     () =>
@@ -128,18 +155,40 @@ function QuickAddForm({ data }: { data: DashboardData }) {
       await inc.mutateAsync({ amount, source, note: n, date: effectiveDate });
     } else if (mode === "Goal contribution") {
       if (!goalId) return setError("Create a goal first");
-      const r = await contrib.mutateAsync({ goalId, amount, note: n, date: effectiveDate });
-      toast.success(r.capped ? `Only ${formatINR(r.applied)} was needed — goal fully funded` : "Assigned to goal");
+      const r = await contrib.mutateAsync({
+        goalId,
+        amount,
+        note: n,
+        date: effectiveDate,
+      });
+      toast.success(
+        r.capped
+          ? `Only ${formatINR(r.applied)} was needed — goal fully funded`
+          : "Assigned to goal",
+      );
     } else {
       const name = remName.trim() || n;
       if (!name) return setError("What is the reminder for?");
-      await bill.mutateAsync({ name, amount, dueOn: effectiveDate, recurrence: remRec });
+      await bill.mutateAsync({
+        name,
+        amount,
+        dueOn: effectiveDate,
+        recurrence: remRec,
+      });
     }
     closeModal();
   }
 
   const saveLabel =
-    mode === "Spend" ? (editing ? "Save changes" : "Add spend") : mode === "Income" ? "Add income" : mode === "Goal contribution" ? "Assign to goal" : "Add reminder";
+    mode === "Spend"
+      ? editing
+        ? "Save changes"
+        : "Add spend"
+      : mode === "Income"
+        ? "Add income"
+        : mode === "Goal contribution"
+          ? "Assign to goal"
+          : "Add reminder";
 
   return (
     <form
@@ -151,6 +200,7 @@ function QuickAddForm({ data }: { data: DashboardData }) {
     >
       {!editing && (
         <Segmented<Mode>
+          fill
           ariaLabel="What are you adding"
           options={MODES}
           labels={MODE_LABELS}
@@ -193,14 +243,23 @@ function QuickAddForm({ data }: { data: DashboardData }) {
             type="button"
             onClick={() => setCustom(!custom)}
             aria-expanded={custom}
-            className="self-start text-[13px] font-medium text-(--p-accent) hover:underline"
+            className="-my-2 self-start py-2 text-[13px] font-medium text-(--p-accent) hover:underline"
           >
             {custom ? "Cancel new category" : "+ Create a custom category"}
           </button>
           {custom && (
             <div className="flex flex-col gap-3 rounded-[var(--radius-control)] border border-(--p-line) bg-(--p-surface2) p-3.5">
-              <Input label="Category name" value={cName} maxLength={40} onChange={(e) => setCName(e.target.value)} />
-              <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Icon">
+              <Input
+                label="Category name"
+                value={cName}
+                maxLength={40}
+                onChange={(e) => setCName(e.target.value)}
+              />
+              <div
+                className="flex flex-wrap items-center gap-1.5"
+                role="radiogroup"
+                aria-label="Icon"
+              >
                 {CUSTOM_ICONS.map((i) => (
                   <button
                     key={i}
@@ -214,11 +273,19 @@ function QuickAddForm({ data }: { data: DashboardData }) {
                       cIcon === i ? "border-(--p-ink)" : "border-(--p-line)",
                     )}
                   >
-                    <i className={cn(i, "text-[16px]")} style={{ color: cColor }} aria-hidden />
+                    <i
+                      className={cn(i, "text-[16px]")}
+                      style={{ color: cColor }}
+                      aria-hidden
+                    />
                   </button>
                 ))}
               </div>
-              <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Colour">
+              <div
+                className="flex flex-wrap items-center gap-2"
+                role="radiogroup"
+                aria-label="Colour"
+              >
                 {CUSTOM_COLORS.map((col) => (
                   <button
                     key={col}
@@ -228,7 +295,13 @@ function QuickAddForm({ data }: { data: DashboardData }) {
                     aria-checked={cColor === col}
                     onClick={() => setCColor(col)}
                     className="size-6 rounded-full"
-                    style={{ background: col, boxShadow: cColor === col ? `0 0 0 2px var(--p-surface2), 0 0 0 4px ${col}` : "none" }}
+                    style={{
+                      background: col,
+                      boxShadow:
+                        cColor === col
+                          ? `0 0 0 2px var(--p-surface2), 0 0 0 4px ${col}`
+                          : "none",
+                    }}
                   />
                 ))}
                 <div className="ml-auto">
@@ -239,7 +312,11 @@ function QuickAddForm({ data }: { data: DashboardData }) {
                     successLabel="Created"
                     disabled={!cName.trim()}
                     onAction={async () => {
-                      const id = await newCat.mutateAsync({ name: cName.trim(), icon: cIcon, color: cColor });
+                      const id = await newCat.mutateAsync({
+                        name: cName.trim(),
+                        icon: cIcon,
+                        color: cColor,
+                      });
                       setCat(id);
                       setCName("");
                       setTimeout(() => setCustom(false), 900);
@@ -259,7 +336,13 @@ function QuickAddForm({ data }: { data: DashboardData }) {
           items={INCOME_SOURCES.map((k) => ({
             value: k,
             label: k,
-            icon: <i className={SOURCE_META[k].icon} style={{ color: SOURCE_META[k].color }} aria-hidden />,
+            icon: (
+              <i
+                className={SOURCE_META[k].icon}
+                style={{ color: SOURCE_META[k].color }}
+                aria-hidden
+              />
+            ),
           }))}
           value={source}
           onValueChange={(v) => setSource(v as IncomeSource)}
@@ -269,7 +352,9 @@ function QuickAddForm({ data }: { data: DashboardData }) {
 
       {mode === "Goal contribution" &&
         (openGoals.length === 0 ? (
-          <p className="text-[13px] text-(--p-fg3)">No open goals. Create one under Wishlist.</p>
+          <p className="text-[13px] text-(--p-fg3)">
+            No open goals. Create one under Wishlist.
+          </p>
         ) : (
           <MorphSelect
             label="Goal"
@@ -296,7 +381,14 @@ function QuickAddForm({ data }: { data: DashboardData }) {
           />
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium">Repeats</span>
-            <Segmented<Recurrence> ariaLabel="Repeats" options={RECURRENCES} value={remRec} onChange={setRemRec} />
+            <Segmented<Recurrence>
+              fill
+              className="flex-1"
+              ariaLabel="Repeats"
+              options={RECURRENCES}
+              value={remRec}
+              onChange={setRemRec}
+            />
           </div>
         </div>
       )}
@@ -312,11 +404,19 @@ function QuickAddForm({ data }: { data: DashboardData }) {
           locale="en-IN"
           format={{ day: "numeric", month: "short", year: "numeric" }}
         />
-        <Input label="Note" placeholder="Optional" value={note} maxLength={120} onChange={(e) => setNote(e.target.value)} />
+        <Input
+          label="Note"
+          placeholder="Optional"
+          value={note}
+          maxLength={120}
+          onChange={(e) => setNote(e.target.value)}
+        />
       </div>
 
       <div className="flex items-center justify-end gap-2 border-t border-(--p-line) pt-4">
-        <span className="mr-auto text-xs text-(--p-fg3) max-sm:hidden">Enter to save</span>
+        <span className="mr-auto text-xs text-(--p-fg3) max-sm:hidden">
+          Enter to save
+        </span>
         <Button type="button" variant="ghost" onClick={closeModal}>
           Cancel
         </Button>

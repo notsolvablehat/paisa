@@ -171,3 +171,34 @@ html:root[data-theme="dark"] {
     animation: none;
   }
 }
+
+/*
+ * Transactions / Reminders tables on phones (uiarc SortableDataTable folds rows into cards
+ * below 620px). Keep each card to two tidy lines: date … amount, then
+ * description + chips … actions, instead of actions wrapping onto a line of their own.
+ */
+@media (max-width: 620px) {
+  .list-table td[data-label="Description"] { flex: 1 1 0; min-width: 0; }
+  /* A bill name shares its row with a recurrence badge, a category and three controls: give it the full line. */
+  .list-table td[data-label="Reminder"] { flex: 1 0 100%; min-width: 0; color: var(--p-ink); font-size: var(--text-sm); }
+  .list-table td[data-label="Category"] { flex: none; }
+  .list-table td[data-label="Actions"] { flex: none; margin-left: auto; }
+  .list-table td[data-label="Actions"] button { min-width: 36px; min-height: 36px; }
+  .list-table th[data-key="actions"] { display: none; }
+}
+
+/* Tour targets scroll clear of the sticky header (desktop 68px; phones 57px bar + 48px nav row). */
+[data-tour] { scroll-margin-top: 88px; }
+@media (max-width: 767px) { [data-tour] { scroll-margin-top: 120px; } }
+
+/*
+ * iOS Safari zooms the page when a focused field's text is under 16px (uiarc inputs are 14px).
+ * On touch screens, lift text fields to at least 16px; larger ones (the amount field) keep their size.
+ */
+@media (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="button"], [type="submit"]),
+  textarea,
+  select {
+    font-size: max(16px, 1em) !important;
+  }
+}

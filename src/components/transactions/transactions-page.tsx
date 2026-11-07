@@ -4,21 +4,51 @@ import type { SessionUser } from "@/components/dashboard/header";
 
 import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { DateRangePicker, type DateRange, type DateRangePreset } from "@/components/arc/date-range-picker/date-range-picker";
-import { FilterToolbar, type FilterChip, type FilterField } from "@/components/arc/filter-toolbar/filter-toolbar";
+import {
+  DateRangePicker,
+  type DateRange,
+  type DateRangePreset,
+} from "@/components/arc/date-range-picker/date-range-picker";
+import {
+  FilterToolbar,
+  type FilterChip,
+  type FilterField,
+} from "@/components/arc/filter-toolbar/filter-toolbar";
 import { Pagination } from "@/components/arc/pagination/pagination";
 import { SearchField } from "@/components/arc/search-field/search-field";
-import { SortableDataTable, type DataColumn, type SortState } from "@/components/arc/sortable-data-table/sortable-data-table";
+import {
+  SortableDataTable,
+  type DataColumn,
+  type SortState,
+} from "@/components/arc/sortable-data-table/sortable-data-table";
 import { Tooltip } from "@/components/arc/tooltip/tooltip";
 import { Button } from "@/components/arc/button/button";
 import { AppShell } from "@/components/dashboard/app-shell";
 import { CategoryDonut } from "@/components/dashboard/category-donut";
-import { Chip, EmptyState, Panel, Stat } from "@/components/dashboard/primitives";
+import {
+  Chip,
+  EmptyState,
+  Panel,
+  Stat,
+} from "@/components/dashboard/primitives";
 import { useLedger } from "@/hooks/use-dashboard";
 import { useDeleteSpend } from "@/hooks/use-delete-spend";
 import { INCOME_SOURCES, SOURCE_META } from "@/lib/constants";
-import { addDays, addMonths, dayMonth, ISO_DATE, monthRange, parseISO, toISO } from "@/lib/dates";
-import { formatINR, formatRoundINR, formatTotalINR, NO_DATA } from "@/lib/money";
+import {
+  addDays,
+  addMonths,
+  dayMonth,
+  ISO_DATE,
+  monthRange,
+  parseISO,
+  toISO,
+} from "@/lib/dates";
+import {
+  formatINR,
+  formatRoundINR,
+  formatTotalINR,
+  NO_DATA,
+} from "@/lib/money";
 import type { DashboardData, LedgerRow } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useUI } from "@/stores/ui";
@@ -39,15 +69,25 @@ const toDate = (iso: string) => {
   const { y, m, d } = parseISO(iso);
   return new Date(y, m - 1, d);
 };
-const fromDate = (d: Date) => toISO({ y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() });
+const fromDate = (d: Date) =>
+  toISO({ y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() });
 const validISO = (s: string | null) => (s && ISO_DATE.test(s) ? s : null);
 
 function presets(todayISO: string): DateRangePreset[] {
   const thisMonth = todayISO.slice(0, 7);
-  const r = (from: string, to: string) => () => ({ start: toDate(from), end: toDate(to) });
+  const r = (from: string, to: string) => () => ({
+    start: toDate(from),
+    end: toDate(to),
+  });
   return [
     { label: "This month", range: r(monthRange(thisMonth).start, todayISO) },
-    { label: "Last month", range: r(monthRange(addMonths(thisMonth, -1)).start, monthRange(addMonths(thisMonth, -1)).end) },
+    {
+      label: "Last month",
+      range: r(
+        monthRange(addMonths(thisMonth, -1)).start,
+        monthRange(addMonths(thisMonth, -1)).end,
+      ),
+    },
     { label: "Last 90 days", range: r(addDays(todayISO, -89), todayISO) },
     { label: "This year", range: r(`${todayISO.slice(0, 4)}-01-01`, todayISO) },
     { label: "Last 12 months", range: r(addDays(todayISO, -364), todayISO) },
@@ -94,14 +134,23 @@ function TransactionsView({ data }: { data: DashboardData }) {
 
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<FilterChip[]>([]);
-  const [sort, setSort] = useState<SortState>({ key: "date", direction: "desc" });
+  const [sort, setSort] = useState<SortState>({
+    key: "date",
+    direction: "desc",
+  });
   const [page, setPage] = useState(1);
 
-  const catBy = useMemo(() => new Map(data.categories.map((c) => [c.id, c])), [data.categories]);
+  const catBy = useMemo(
+    () => new Map(data.categories.map((c) => [c.id, c])),
+    [data.categories],
+  );
   const all = useMemo(() => ledger.data?.rows ?? [], [ledger.data]);
 
   const setRange = (range: DateRange) => {
-    const qs = new URLSearchParams({ from: fromDate(range.start), to: fromDate(range.end) });
+    const qs = new URLSearchParams({
+      from: fromDate(range.start),
+      to: fromDate(range.end),
+    });
     router.replace(`${pathname}?${qs}`, { scroll: false });
     setPage(1);
   };
@@ -114,7 +163,11 @@ function TransactionsView({ data }: { data: DashboardData }) {
         id: "type",
         label: "Type",
         icon: <i className="ri-swap-line" aria-hidden />,
-        options: TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label, hint: count(typePred(o.value)) })),
+        options: TYPE_OPTIONS.map((o) => ({
+          value: o.value,
+          label: o.label,
+          hint: count(typePred(o.value)),
+        })),
       },
       {
         id: "category",
@@ -135,14 +188,24 @@ function TransactionsView({ data }: { data: DashboardData }) {
           value: k,
           label: k,
           hint: count((r) => r.source === k),
-          icon: <i className={SOURCE_META[k].icon} style={{ color: SOURCE_META[k].color }} aria-hidden />,
+          icon: (
+            <i
+              className={SOURCE_META[k].icon}
+              style={{ color: SOURCE_META[k].color }}
+              aria-hidden
+            />
+          ),
         })),
       },
       {
         id: "amount",
         label: "Amount",
         icon: <i className="ri-money-rupee-circle-line" aria-hidden />,
-        options: AMOUNT_OPTIONS.map((o) => ({ value: o.value, label: o.label, hint: count(amountPred(o)) })),
+        options: AMOUNT_OPTIONS.map((o) => ({
+          value: o.value,
+          label: o.label,
+          hint: count(amountPred(o)),
+        })),
       },
     ];
   }, [all, data.categories]);
@@ -152,7 +215,9 @@ function TransactionsView({ data }: { data: DashboardData }) {
     const preds: ((r: LedgerRow) => boolean)[] = [];
     for (const chip of filters) {
       const field = fields.find((f) => f.id === chip.id);
-      const opt = field?.options.find((o) => typeof o !== "string" && o.label === chip.value);
+      const opt = field?.options.find(
+        (o) => typeof o !== "string" && o.label === chip.value,
+      );
       if (!opt || typeof opt === "string") continue;
       if (chip.id === "type") preds.push(typePred(opt.value));
       if (chip.id === "category") preds.push((r) => r.categoryId === opt.value);
@@ -166,8 +231,13 @@ function TransactionsView({ data }: { data: DashboardData }) {
     return all.filter((r) => {
       if (!preds.every((p) => p(r))) return false;
       if (!q) return true;
-      const label = r.kind === "spend" ? (catBy.get(r.categoryId ?? "")?.name ?? "") : (r.source ?? "");
-      return r.note.toLowerCase().includes(q) || label.toLowerCase().includes(q);
+      const label =
+        r.kind === "spend"
+          ? (catBy.get(r.categoryId ?? "")?.name ?? "")
+          : (r.source ?? "");
+      return (
+        r.note.toLowerCase().includes(q) || label.toLowerCase().includes(q)
+      );
     });
   }, [all, filters, fields, query, catBy]);
 
@@ -175,8 +245,16 @@ function TransactionsView({ data }: { data: DashboardData }) {
     () =>
       filtered.map((r) => {
         const c = r.categoryId ? catBy.get(r.categoryId) : undefined;
-        const category = r.kind === "spend" ? (c?.name ?? "Unknown") : (r.source ?? "Income");
-        return { id: `${r.kind}:${r.id}`, date: r.date, description: r.note || category, category, amount: r.amount, row: r };
+        const category =
+          r.kind === "spend" ? (c?.name ?? "Unknown") : (r.source ?? "Income");
+        return {
+          id: `${r.kind}:${r.id}`,
+          date: r.date,
+          description: r.note || category,
+          category,
+          amount: r.amount,
+          row: r,
+        };
       }),
     [filtered, catBy],
   );
@@ -186,17 +264,25 @@ function TransactionsView({ data }: { data: DashboardData }) {
     const dir = sort.direction === "asc" ? 1 : -1;
     const k = sort.key as keyof Row;
     return [...rows].sort((a, b) => {
-      const x = a[k], y = b[k];
-      const res = typeof x === "number" && typeof y === "number" ? x - y : collator.compare(String(x), String(y));
+      const x = a[k],
+        y = b[k];
+      const res =
+        typeof x === "number" && typeof y === "number"
+          ? x - y
+          : collator.compare(String(x), String(y));
       return res * dir;
     });
   }, [rows, sort]);
   const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
-  const pageRows = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const pageRows = sorted.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  );
 
   const totals = useMemo(() => {
-    let spent = 0, received = 0;
+    let spent = 0,
+      received = 0;
     const byCat = new Map<string, number>();
     for (const r of filtered) {
       if (r.kind === "spend") {
@@ -217,7 +303,9 @@ function TransactionsView({ data }: { data: DashboardData }) {
       render: (_, r) => (
         <span className="whitespace-nowrap text-(--p-fg2)">
           {dayMonth(r.date)}
-          {r.date.slice(0, 4) !== thisYear && <span className="text-(--p-fg3)"> {r.date.slice(0, 4)}</span>}
+          {r.date.slice(0, 4) !== thisYear && (
+            <span className="text-(--p-fg3)"> {r.date.slice(0, 4)}</span>
+          )}
         </span>
       ),
     },
@@ -229,7 +317,9 @@ function TransactionsView({ data }: { data: DashboardData }) {
         <span className="flex min-w-0 items-center gap-2">
           <span className="truncate">{r.description}</span>
           {r.row.billId && (
-            <span className="shrink-0 rounded-full border border-(--p-line) px-1.5 text-[11px] text-(--p-fg3)">Bill</span>
+            <span className="shrink-0 rounded-full border border-(--p-line) px-1.5 text-[11px] text-(--p-fg3)">
+              Bill
+            </span>
           )}
         </span>
       ),
@@ -240,7 +330,12 @@ function TransactionsView({ data }: { data: DashboardData }) {
       sortable: true,
       width: 168,
       render: (_, r) => {
-        const color = r.row.kind === "spend" ? catBy.get(r.row.categoryId ?? "")?.color : r.row.source ? SOURCE_META[r.row.source].color : undefined;
+        const color =
+          r.row.kind === "spend"
+            ? catBy.get(r.row.categoryId ?? "")?.color
+            : r.row.source
+              ? SOURCE_META[r.row.source].color
+              : undefined;
         return <Chip color={color}>{r.category}</Chip>;
       },
     },
@@ -252,7 +347,9 @@ function TransactionsView({ data }: { data: DashboardData }) {
       width: 128,
       render: (_, r) =>
         r.row.kind === "income" ? (
-          <span className="font-medium text-(--p-pos)">+{formatINR(r.amount)}</span>
+          <span className="font-medium text-(--p-pos)">
+            +{formatINR(r.amount)}
+          </span>
         ) : (
           <span className="font-medium">{formatINR(r.amount)}</span>
         ),
@@ -299,7 +396,12 @@ function TransactionsView({ data }: { data: DashboardData }) {
 
   const donut = data.categories
     .filter((c) => (totals.byCat.get(c.id) ?? 0) > 0)
-    .map((c) => ({ key: c.id, label: c.name, amount: totals.byCat.get(c.id) ?? 0, color: c.color }));
+    .map((c) => ({
+      key: c.id,
+      label: c.name,
+      amount: totals.byCat.get(c.id) ?? 0,
+      color: c.color,
+    }));
 
   const clearAll = () => {
     setFilters([]);
@@ -311,10 +413,15 @@ function TransactionsView({ data }: { data: DashboardData }) {
     <>
       <div className="-mb-[clamp(16px,2.5cqw,40px)] flex flex-wrap items-end justify-between gap-4 px-1">
         <div>
-          <h1 className="font-display text-[clamp(28px,3.2cqw,36px)] font-normal tracking-[-.03em]">Transactions</h1>
+          <h1 className="font-display text-[clamp(28px,3.2cqw,36px)] font-normal tracking-[-.03em]">
+            Transactions
+          </h1>
           <p className="mt-1 text-sm text-(--p-fg3)">
-            {ledger.isPending ? "Loading…" : `${filtered.length} of ${all.length} in range`}
-            {ledger.data?.truncated && " · showing the latest 5,000 — narrow the dates to see older ones"}
+            {ledger.isPending
+              ? "Loading…"
+              : `${filtered.length} of ${all.length} in range`}
+            {ledger.data?.truncated &&
+              " · showing the latest 5,000 — narrow the dates to see older ones"}
           </p>
         </div>
         <DateRangePicker
@@ -353,7 +460,10 @@ function TransactionsView({ data }: { data: DashboardData }) {
                 fields,
                 align: "start",
                 onAdd: (chip) => {
-                  setFilters((f) => [...f.filter((x) => x.id !== chip.id), chip]);
+                  setFilters((f) => [
+                    ...f.filter((x) => x.id !== chip.id),
+                    chip,
+                  ]);
                   setPage(1);
                 },
               }}
@@ -361,11 +471,25 @@ function TransactionsView({ data }: { data: DashboardData }) {
           </div>
 
           {ledger.isError ? (
-            <EmptyState scene="inbox" title="Couldn't load transactions" action={<Button size="sm" variant="secondary" onClick={() => ledger.refetch()}>Try again</Button>} />
+            <EmptyState
+              scene="inbox"
+              title="Couldn't load transactions"
+              action={
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => ledger.refetch()}
+                >
+                  Try again
+                </Button>
+              }
+            />
           ) : !ledger.isPending && rows.length === 0 ? (
             <EmptyState
               scene="search"
-              title={all.length === 0 ? "Nothing in this range" : "Nothing matches"}
+              title={
+                all.length === 0 ? "Nothing in this range" : "Nothing matches"
+              }
               action={
                 all.length > 0 ? (
                   <Button size="sm" variant="secondary" onClick={clearAll}>
@@ -374,10 +498,17 @@ function TransactionsView({ data }: { data: DashboardData }) {
                 ) : undefined
               }
             >
-              {all.length === 0 ? "Pick a wider date range." : "Try removing a filter or searching for something else."}
+              {all.length === 0
+                ? "Pick a wider date range."
+                : "Try removing a filter or searching for something else."}
             </EmptyState>
           ) : (
-            <div className={cn("-mx-2 overflow-x-auto px-2 transition-opacity", ledger.isFetching && "opacity-60")}>
+            <div
+              className={cn(
+                "list-table -mx-2 overflow-x-auto px-2 transition-opacity",
+                ledger.isFetching && "opacity-60",
+              )}
+            >
               <SortableDataTable<Row>
                 rows={pageRows}
                 columns={columns}
@@ -396,17 +527,34 @@ function TransactionsView({ data }: { data: DashboardData }) {
           {pageCount > 1 && (
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
               <span className="text-xs text-(--p-fg3)">
-                {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, sorted.length)} of {sorted.length}
+                {(safePage - 1) * PAGE_SIZE + 1}–
+                {Math.min(safePage * PAGE_SIZE, sorted.length)} of{" "}
+                {sorted.length}
               </span>
-              <Pagination page={safePage} pageCount={pageCount} onPageChange={setPage} label="Transaction pages" />
+              <Pagination
+                page={safePage}
+                pageCount={pageCount}
+                onPageChange={setPage}
+                label="Transaction pages"
+              />
             </div>
           )}
         </Panel>
 
-        <aside className="flex flex-col gap-4" aria-label="Totals for the filtered transactions">
+        <aside
+          className="flex flex-col gap-4"
+          aria-label="Totals for the filtered transactions"
+        >
           <Panel className="grid grid-cols-2 gap-x-4 gap-y-5">
-            <Stat label="Spent" value={formatTotalINR(totals.spent, formatRoundINR)} />
-            <Stat label="Received" value={formatTotalINR(totals.received, formatRoundINR)} tone={totals.received > 0 ? "pos" : undefined} />
+            <Stat
+              label="Spent"
+              value={formatTotalINR(totals.spent, formatRoundINR)}
+            />
+            <Stat
+              label="Received"
+              value={formatTotalINR(totals.received, formatRoundINR)}
+              tone={totals.received > 0 ? "pos" : undefined}
+            />
             <Stat
               label="Net"
               value={
@@ -414,7 +562,13 @@ function TransactionsView({ data }: { data: DashboardData }) {
                   ? NO_DATA
                   : `${totals.received - totals.spent < 0 ? "−" : "+"}${formatRoundINR(Math.abs(totals.received - totals.spent))}`
               }
-              tone={filtered.length === 0 ? undefined : totals.received - totals.spent < 0 ? "warn" : "pos"}
+              tone={
+                filtered.length === 0
+                  ? undefined
+                  : totals.received - totals.spent < 0
+                    ? "warn"
+                    : "pos"
+              }
             />
             <Stat label="Transactions" value={String(filtered.length)} />
           </Panel>
@@ -423,7 +577,11 @@ function TransactionsView({ data }: { data: DashboardData }) {
             {donut.length === 0 ? (
               <EmptyState scene="search" compact title="No spends here" />
             ) : (
-              <CategoryDonut slices={donut} label="Spending by category" totalLabel="Spent" />
+              <CategoryDonut
+                slices={donut}
+                label="Spending by category"
+                totalLabel="Spent"
+              />
             )}
           </Panel>
         </aside>
@@ -432,7 +590,10 @@ function TransactionsView({ data }: { data: DashboardData }) {
   );
 }
 
-const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+const collator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base",
+});
 
 function typePred(v: string): (r: LedgerRow) => boolean {
   if (v === "spend") return (r) => r.kind === "spend";

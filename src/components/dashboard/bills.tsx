@@ -17,7 +17,10 @@ import { EmptyState, Panel, SectionHeader } from "./primitives";
 const LIMIT = 6;
 
 export function Bills({ data }: { data: DashboardData }) {
-  const all = useMemo(() => billRows(data.bills, data.today), [data.bills, data.today]);
+  const all = useMemo(
+    () => billRows(data.bills, data.today),
+    [data.bills, data.today],
+  );
   const sum = billsSummary(all);
   // The overview shows what still needs doing; the full history lives on /reminders.
   const open = all.filter((b) => !b.paid);
@@ -27,7 +30,12 @@ export function Bills({ data }: { data: DashboardData }) {
   const openModal = useUI((s) => s.openModal);
 
   return (
-    <section aria-label="Coming up" data-tour="bills" id="coming-up" className="flex min-w-0 scroll-mt-24 flex-col">
+    <section
+      aria-label="Coming up"
+      data-tour="bills"
+      id="coming-up"
+      className="flex min-w-0 scroll-mt-24 flex-col"
+    >
       <SectionHeader
         title="Coming up"
         right={
@@ -44,7 +52,7 @@ export function Bills({ data }: { data: DashboardData }) {
             </Tooltip>
             <Link
               href="/reminders"
-              className="flex items-center gap-1 text-[13px] font-medium text-(--p-fg2) transition-colors hover:text-(--p-ink)"
+              className="-my-2 flex min-h-10 items-center gap-1 py-2 text-[13px] font-medium text-(--p-fg2) transition-colors hover:text-(--p-ink)"
             >
               View all
               <i className="ri-arrow-right-line text-[15px]" aria-hidden />
@@ -55,38 +63,70 @@ export function Bills({ data }: { data: DashboardData }) {
       <Panel className="flex-1">
         {all.length === 0 ? (
           <EmptyState scene="inbox" title="Nothing coming up">
-            Add rent, subscriptions or insurance as reminders and they&apos;ll count against today&apos;s safe-to-spend.
+            Add rent, subscriptions or insurance as reminders and they&apos;ll
+            count against today&apos;s safe-to-spend.
           </EmptyState>
         ) : (
           <>
             <p className="mb-3 text-[15px] text-(--p-fg2)">
-              <span className="font-medium text-(--p-ink)">{formatINR(sum.next14)}</span> due in the next 14 days.
+              <span className="font-medium text-(--p-ink)">
+                {formatINR(sum.next14)}
+              </span>{" "}
+              due in the next 14 days.
               {sum.overdue.length > 0 && (
                 <span className="text-(--p-warn)">
                   {" "}
-                  {sum.overdue.map((b) => b.name).join(", ")} slipped past {sum.overdue.length === 1 ? "its" : "their"} date — no rush, just
-                  tick {sum.overdue.length === 1 ? "it" : "them"} off when done.
+                  {sum.overdue.map((b) => b.name).join(", ")} slipped past{" "}
+                  {sum.overdue.length === 1 ? "its" : "their"} date — no rush,
+                  just tick {sum.overdue.length === 1 ? "it" : "them"} off when
+                  done.
                 </span>
               )}
             </p>
             <ul className="relative">
               {rows.map((b) => {
-                const muted = b.paid ? "text-(--p-fg3) line-through" : "text-(--p-ink)";
-                const busy = toggle.isPending && toggle.variables?.billId === b.id;
+                const muted = b.paid
+                  ? "text-(--p-fg3) line-through"
+                  : "text-(--p-ink)";
+                const busy =
+                  toggle.isPending && toggle.variables?.billId === b.id;
                 return (
                   <li
                     key={b.id}
                     className="grid min-h-[60px] grid-cols-[clamp(64px,9cqw,104px)_16px_minmax(0,1fr)_auto_44px] items-center gap-x-4"
                   >
                     <div className="flex flex-col gap-0.5">
-                      <span className={cn("text-[13px] font-medium", b.paid ? "text-(--p-fg3)" : "text-(--p-ink)")}>{dayMonth(b.dueOn)}</span>
-                      <span className={cn("text-xs", b.overdue ? "text-(--p-warn)" : "text-(--p-fg3)")}>{relativeDue(b)}</span>
+                      <span
+                        className={cn(
+                          "text-[13px] font-medium",
+                          b.paid ? "text-(--p-fg3)" : "text-(--p-ink)",
+                        )}
+                      >
+                        {dayMonth(b.dueOn)}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-xs",
+                          b.overdue ? "text-(--p-warn)" : "text-(--p-fg3)",
+                        )}
+                      >
+                        {relativeDue(b)}
+                      </span>
                     </div>
-                    <div className="relative grid place-items-center self-stretch" aria-hidden>
+                    <div
+                      className="relative grid place-items-center self-stretch"
+                      aria-hidden
+                    >
                       <div className="absolute inset-y-0 left-1/2 w-px bg-(--p-line)" />
                       <div
                         className="relative size-[9px] rounded-full shadow-[0_0_0_3px_var(--p-surface)]"
-                        style={{ background: b.paid ? "var(--p-pos)" : b.overdue ? "var(--p-accent)" : "var(--p-lineStrong)" }}
+                        style={{
+                          background: b.paid
+                            ? "var(--p-pos)"
+                            : b.overdue
+                              ? "var(--p-accent)"
+                              : "var(--p-lineStrong)",
+                        }}
                       />
                     </div>
                     <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 border-b border-(--p-line) py-3">
@@ -95,7 +135,12 @@ export function Bills({ data }: { data: DashboardData }) {
                         {b.recurrence}
                       </Badge>
                     </div>
-                    <span className={cn("flex items-center self-stretch border-b border-(--p-line) font-medium", muted)}>
+                    <span
+                      className={cn(
+                        "flex items-center self-stretch border-b border-(--p-line) font-medium",
+                        muted,
+                      )}
+                    >
                       {formatINR(b.amount)}
                     </span>
                     <div className="flex items-center justify-end self-stretch border-b border-(--p-line)">
@@ -106,17 +151,26 @@ export function Bills({ data }: { data: DashboardData }) {
                         aria-label={`Mark ${b.name} due ${dayMonth(b.dueOn)} ${b.paid ? "unpaid" : "paid"}`}
                         title={b.paid ? "Mark unpaid" : "Mark paid"}
                         disabled={busy}
-                        onClick={() => toggle.mutate({ billId: b.id, paid: !b.paid })}
+                        onClick={() =>
+                          toggle.mutate({ billId: b.id, paid: !b.paid })
+                        }
                         className="grid size-11 place-items-center p-0"
                       >
                         <span
                           className={cn(
                             "grid size-[22px] place-items-center rounded-[7px] border transition-colors",
-                            b.paid ? "border-(--p-primary) bg-(--p-primary) text-(--p-onPrimary)" : "border-(--p-lineStrong) bg-transparent",
+                            b.paid
+                              ? "border-(--p-primary) bg-(--p-primary) text-(--p-onPrimary)"
+                              : "border-(--p-lineStrong) bg-transparent",
                             busy && "opacity-50",
                           )}
                         >
-                          {b.paid && <i className="ri-check-line text-[14px]" aria-hidden />}
+                          {b.paid && (
+                            <i
+                              className="ri-check-line text-[14px]"
+                              aria-hidden
+                            />
+                          )}
                         </span>
                       </button>
                     </div>
@@ -124,7 +178,11 @@ export function Bills({ data }: { data: DashboardData }) {
                 );
               })}
             </ul>
-            {rows.length === 0 && <p className="py-2 text-sm text-(--p-fg2)">All caught up for now.</p>}
+            {rows.length === 0 && (
+              <p className="py-2 text-sm text-(--p-fg2)">
+                All caught up for now.
+              </p>
+            )}
             {(open.length > LIMIT || paidCount > 0) && (
               <p className="mt-3 text-xs text-(--p-fg3)">
                 {open.length > LIMIT && (
@@ -134,7 +192,10 @@ export function Bills({ data }: { data: DashboardData }) {
                   </>
                 )}
                 {paidCount > 0 && `${paidCount} paid this month`} ·{" "}
-                <Link href="/reminders" className="font-medium text-(--p-fg2) hover:text-(--p-ink)">
+                <Link
+                  href="/reminders"
+                  className="-my-3 inline-block py-3 font-medium text-(--p-fg2) hover:text-(--p-ink)"
+                >
                   See all reminders
                 </Link>
               </p>

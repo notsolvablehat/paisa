@@ -7,7 +7,7 @@ import { longDay, monthLabel, MONTHS_LONG, parseISO } from "@/lib/dates";
 import { budgetNotes, categoryRows, type Summary } from "@/lib/finance";
 import { formatINR, formatTotalINR, NO_DATA, formatNumber } from "@/lib/money";
 import type { DashboardData } from "@/lib/types";
-import { AmountEdit, Panel } from "./primitives";
+import { AmountEdit, Panel, TapOrClick } from "./primitives";
 
 const B = ({ children }: { children: React.ReactNode }) => (
   <span className="font-medium text-(--p-ink)">{children}</span>
@@ -161,11 +161,21 @@ export function Hero({ data, s }: { data: DashboardData; s: Summary }) {
 
       <div
         data-tour="balance"
-        className="grid grid-cols-1 gap-4 max-lg:grid-cols-3 max-sm:grid-cols-1"
+        className="grid grid-cols-1 gap-4 max-lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)_minmax(0,1fr)] max-sm:grid-cols-1"
       >
         <Stat
           label="Current balance"
-          sub={data.balanceKnown ? "As of today · click to correct" : "Click to enter what your bank shows"}
+          sub={
+            data.balanceKnown ? (
+              <>
+                As of today · <TapOrClick lower /> to correct
+              </>
+            ) : (
+              <>
+                <TapOrClick /> to enter what your bank shows
+              </>
+            )
+          }
         >
           <AmountEdit
             value={s.balance}
@@ -197,7 +207,7 @@ function Stat({
   tone,
 }: {
   label: string;
-  sub: string;
+  sub: React.ReactNode;
   children: React.ReactNode;
   tone?: "pos" | "warn";
 }) {
@@ -205,7 +215,7 @@ function Stat({
     <Panel className="flex flex-col justify-center">
       <div className="text-[13px] text-(--p-fg3)">{label}</div>
       <div
-        className={`mt-2 font-display text-[clamp(24px,2.6cqw,32px)] tracking-[-.03em] ${
+        className={`mt-2 min-w-0 font-display text-[clamp(20px,2.6cqw,32px)] tracking-[-.03em] ${
           tone === "pos"
             ? "text-(--p-pos)"
             : tone === "warn"
