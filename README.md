@@ -23,6 +23,24 @@ npm run db:seed        # (dev server running) demo@paisa.local / paisa-demo-123
 | `npm run db:studio` | Browse the database |
 | `npm run db:seed [-- email]` | Reset an account to the design's demo data |
 | `npm run db:seed:history -- email` | Replace an account's data with ~5 months of synthetic history |
+| `NEW_PASSWORD='…' npm run db:set-password -- email` | Set an account's password (signs it out everywhere) |
+| `npm run data:export -- email` | Write one account (login + all its data) to `data/<email>.json` |
+| `TARGET_DATABASE_URL=… npm run data:import -- data/<email>.json [--replace]` | Load that file into another database, in one transaction |
+
+Any script reads `DATABASE_URL` from `.env.local` unless you set it in the shell (`DATABASE_URL=… npm run db:migrate` targets another database). `data/` holds a password hash and personal data and is gitignored.
+
+## Deploy (Vercel + Neon)
+
+1. **Neon:** create a project in the region nearest you. Copy two connection strings: the **pooled** one (host contains `-pooler`) for the app, and the **direct** one for migrations.
+2. **Schema:** `DATABASE_URL='<neon direct url>' npm run db:migrate`
+3. **Your data (optional):** `npm run data:export -- you@example.com`, then `TARGET_DATABASE_URL='<neon direct url>' npm run data:import -- data/you@example.com.json`
+4. **Vercel:** import the repo (framework: Next.js, root: `code/` if the repo root is above it). Set env vars:
+   - `DATABASE_URL`: Neon **pooled** URL (keeps `?sslmode=require`)
+   - `BETTER_AUTH_SECRET`: a new one, `openssl rand -base64 32` (don't reuse the local secret)
+   - `BETTER_AUTH_URL`: `https://<your-domain>` (sign-in breaks if this doesn't match the URL you open)
+   - `DISABLE_SIGNUP`: `true` once your accounts exist (optional)
+5. In Vercel → Settings → Functions, set the region to match Neon's, so every query isn't a round trip across the world.
+6. Later schema changes: `npm run db:generate` locally, commit, then run step 2 against Neon before (or right after) deploying.
 
 ## How it's put together
 

@@ -13,7 +13,10 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx --env-file=.env.local scripts/seed-demo.ts",
-    "db:seed:history": "tsx --env-file=.env.local scripts/seed-history.ts"
+    "db:seed:history": "tsx --env-file=.env.local scripts/seed-history.ts",
+    "db:set-password": "tsx --env-file=.env.local scripts/set-password.ts",
+    "data:export": "tsx --env-file=.env.local scripts/account-data.ts export",
+    "data:import": "tsx --env-file=.env.local scripts/account-data.ts import"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.3.1",
