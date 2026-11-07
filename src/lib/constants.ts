@@ -1,4 +1,4 @@
-/** Category set every new account starts with (budgets in whole rupees). */
+/** Category set every new account starts with. `budget` (whole rupees) is only used by the demo seed. */
 export const DEFAULT_CATEGORIES = [
   { name: "Rent", icon: "ri-home-4-line", color: "#9390A2", budget: 7000 },
   { name: "Food", icon: "ri-restaurant-2-line", color: "#DE7139", budget: 3000 },
@@ -13,6 +13,7 @@ export const DEFAULT_CATEGORIES = [
   { name: "Subscriptions", icon: "ri-repeat-line", color: "#9E435A", budget: 1200 },
 ] as const;
 
+/** Demo-seed budgets; new accounts start at zero. */
 export const DEFAULT_BUDGETS = { monthly: 30000, daily: 1000, hard: 34000 } as const;
 
 export const INCOME_SOURCES = ["Salary", "Freelance", "Side projects", "Other"] as const;

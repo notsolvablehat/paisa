@@ -1,23 +1,20 @@
 import "server-only";
 import { db, schema } from "@/db";
-import { DEFAULT_BUDGETS, DEFAULT_CATEGORIES } from "@/lib/constants";
-import { rupeesToPaise } from "@/lib/money";
+import { DEFAULT_CATEGORIES } from "@/lib/constants";
 
-/** Give a brand-new account its default budgets and categories. Idempotent. */
+/**
+ * Give a brand-new account its settings row and default categories. Idempotent.
+ * Budgets start at zero: the user sets their own (the demo seed uses DEFAULT_BUDGETS).
+ */
 export async function provisionNewUser(userId: string) {
   await db.transaction(async (tx) => {
     await tx
       .insert(schema.settings)
-      .values({
-        userId,
-        monthlyBudget: rupeesToPaise(DEFAULT_BUDGETS.monthly),
-        dailyBudget: rupeesToPaise(DEFAULT_BUDGETS.daily),
-        hardLimit: rupeesToPaise(DEFAULT_BUDGETS.hard),
-      })
+      .values({ userId })
       .onConflictDoNothing();
     await tx
       .insert(schema.category)
-      .values(DEFAULT_CATEGORIES.map((c) => ({ userId, name: c.name, icon: c.icon, color: c.color, budget: rupeesToPaise(c.budget) })))
+      .values(DEFAULT_CATEGORIES.map((c) => ({ userId, name: c.name, icon: c.icon, color: c.color, budget: 0 })))
       .onConflictDoNothing();
   });
 }

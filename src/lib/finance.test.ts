@@ -32,6 +32,7 @@ function fixture(over: Partial<DashboardData> = {}): DashboardData {
     month: "2026-11",
     settings: { monthlyBudget: P(30000), dailyBudget: P(1000), hardLimit: P(34000) },
     balance: P(62400),
+    balanceKnown: true,
     categories: cats,
     transactions: [tx("1", 1, "rent", 7000), tx("2", 1, "food", 420), tx("3", 10, "food", 2800), tx("4", 10, "food", 3986)],
     income: [

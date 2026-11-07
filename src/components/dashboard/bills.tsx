@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo } from "react";
+import { Tooltip } from "@/components/arc/tooltip/tooltip";
 import { Badge } from "@/components/arc/badge/badge";
-import { Button } from "@/components/arc/button/button";
 import { setBillPaid } from "@/server/actions";
 import { useAction } from "@/hooks/use-dashboard";
 import { dayMonth } from "@/lib/dates";
@@ -13,25 +14,46 @@ import { cn } from "@/lib/utils";
 import { useUI } from "@/stores/ui";
 import { EmptyState, Panel, SectionHeader } from "./primitives";
 
+const LIMIT = 6;
+
 export function Bills({ data }: { data: DashboardData }) {
-  const rows = useMemo(() => billRows(data.bills, data.today), [data.bills, data.today]);
-  const sum = billsSummary(rows);
+  const all = useMemo(() => billRows(data.bills, data.today), [data.bills, data.today]);
+  const sum = billsSummary(all);
+  // The overview shows what still needs doing; the full history lives on /reminders.
+  const open = all.filter((b) => !b.paid);
+  const rows = open.slice(0, LIMIT);
+  const paidCount = all.length - open.length;
   const toggle = useAction(setBillPaid);
   const openModal = useUI((s) => s.openModal);
 
   return (
-    <section aria-label="Coming up" id="coming-up" className="scroll-mt-24">
+    <section aria-label="Coming up" data-tour="bills" id="coming-up" className="flex min-w-0 scroll-mt-24 flex-col">
       <SectionHeader
         title="Coming up"
         right={
-          <Button size="sm" variant="secondary" onClick={() => openModal("Reminder")}>
-            <i className="ri-add-line text-[16px]" aria-hidden />
-            Add reminder
-          </Button>
+          <div className="flex items-center gap-4">
+            <Tooltip content="Add reminder">
+              <button
+                type="button"
+                aria-label="Add reminder"
+                onClick={() => openModal("Reminder")}
+                className="grid size-8 place-items-center rounded-full text-(--p-fg2) transition-colors hover:bg-(--p-surface2) hover:text-(--p-ink)"
+              >
+                <i className="ri-add-line text-[18px]" aria-hidden />
+              </button>
+            </Tooltip>
+            <Link
+              href="/reminders"
+              className="flex items-center gap-1 text-[13px] font-medium text-(--p-fg2) transition-colors hover:text-(--p-ink)"
+            >
+              View all
+              <i className="ri-arrow-right-line text-[15px]" aria-hidden />
+            </Link>
+          </div>
         }
       />
-      <Panel>
-        {rows.length === 0 ? (
+      <Panel className="flex-1">
+        {all.length === 0 ? (
           <EmptyState scene="inbox" title="Nothing coming up">
             Add rent, subscriptions or insurance as reminders and they&apos;ll count against today&apos;s safe-to-spend.
           </EmptyState>
@@ -81,7 +103,7 @@ export function Bills({ data }: { data: DashboardData }) {
                         type="button"
                         role="checkbox"
                         aria-checked={b.paid}
-                        aria-label={`Mark ${b.name} ${b.paid ? "unpaid" : "paid"}`}
+                        aria-label={`Mark ${b.name} due ${dayMonth(b.dueOn)} ${b.paid ? "unpaid" : "paid"}`}
                         title={b.paid ? "Mark unpaid" : "Mark paid"}
                         disabled={busy}
                         onClick={() => toggle.mutate({ billId: b.id, paid: !b.paid })}
@@ -102,6 +124,21 @@ export function Bills({ data }: { data: DashboardData }) {
                 );
               })}
             </ul>
+            {rows.length === 0 && <p className="py-2 text-sm text-(--p-fg2)">All caught up for now.</p>}
+            {(open.length > LIMIT || paidCount > 0) && (
+              <p className="mt-3 text-xs text-(--p-fg3)">
+                {open.length > LIMIT && (
+                  <>
+                    {open.length - LIMIT} more upcoming
+                    {paidCount > 0 && " · "}
+                  </>
+                )}
+                {paidCount > 0 && `${paidCount} paid this month`} ·{" "}
+                <Link href="/reminders" className="font-medium text-(--p-fg2) hover:text-(--p-ink)">
+                  See all reminders
+                </Link>
+              </p>
+            )}
           </>
         )}
       </Panel>

@@ -30,6 +30,8 @@ export type DashboardData = {
   settings: { monthlyBudget: number; dailyBudget: number; hardLimit: number };
   /** Real balance as of today. */
   balance: number;
+  /** False until the user enters a balance or logs anything: show "—", not ₹0. */
+  balanceKnown: boolean;
   categories: Category[];
   transactions: Txn[]; // in the viewed month
   income: Income[]; // in the viewed month
@@ -45,3 +47,29 @@ export type DashboardData = {
     incomeBySource: { month: string; bySource: Record<IncomeSource, number> }[];
   };
 };
+
+/** One line on the Transactions page: a spend or an income. */
+export type LedgerRow = {
+  id: string;
+  kind: "spend" | "income";
+  date: string;
+  amount: number;
+  note: string;
+  categoryId: string | null;
+  source: IncomeSource | null;
+  billId: string | null;
+};
+export type LedgerData = { from: string; to: string; truncated: boolean; rows: LedgerRow[] };
+
+export type ReminderRow = {
+  id: string;
+  seriesId: string;
+  name: string;
+  amount: number;
+  dueOn: string;
+  recurrence: Recurrence;
+  categoryId: string;
+  /** Date the linked spend was recorded; null while unpaid. */
+  paidOn: string | null;
+};
+export type RemindersData = { from: string; to: string; rows: ReminderRow[] };

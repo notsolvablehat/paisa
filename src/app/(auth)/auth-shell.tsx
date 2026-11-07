@@ -1,11 +1,18 @@
 import { Logo } from "@/components/dashboard/primitives";
+import { Wordmark } from "@/components/brand/wordmark";
 
 /**
  * Backdrop for sign-in / sign-up: concentric rings, soft colour blobs and
  * floating preview cards (decorative only — hidden from assistive tech and
  * on small screens).
  */
-export function AuthShell({ children, floats }: { children: React.ReactNode; floats: React.ReactNode }) {
+export function AuthShell({
+  children,
+  floats,
+}: {
+  children: React.ReactNode;
+  floats: React.ReactNode;
+}) {
   return (
     <div className="relative isolate min-h-dvh overflow-hidden bg-(--p-bg)">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
@@ -26,32 +33,60 @@ export function AuthShell({ children, floats }: { children: React.ReactNode; flo
         <Logo />
       </header>
 
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-[5] max-lg:hidden">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-[5] max-lg:hidden"
+      >
         {floats}
       </div>
 
-      <main className="grid min-h-dvh place-items-center px-5 py-24">{children}</main>
+      <main className="grid min-h-dvh place-items-center px-5 py-24">
+        {children}
+      </main>
 
-      <footer className="absolute inset-x-0 bottom-6 text-center text-[13px] text-(--p-fg3)">© paisa · your numbers stay private</footer>
+      <footer className="absolute inset-x-0 bottom-6 text-center text-[13px] text-(--p-fg3)">
+        © <Wordmark className="text-[13px] text-(--p-fg2)" /> · your numbers
+        stay private
+      </footer>
     </div>
   );
 }
 
 /** A small decorative preview card. */
-export function Float({ className, children }: { className: string; children: React.ReactNode }) {
+export function Float({
+  className,
+  children,
+}: {
+  className: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className={`absolute rounded-[var(--radius-panel)] border border-(--p-line) bg-(--p-surface) p-5 shadow-(--p-shadow-raised) ${className}`}>
+    <div
+      className={`absolute rounded-[var(--radius-panel)] border border-(--p-line) bg-(--p-surface) p-5 shadow-(--p-shadow-raised) ${className}`}
+    >
       {children}
     </div>
   );
 }
 
-export function AuthCard({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+export function AuthCard({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="w-full max-w-[432px] rounded-[var(--radius-surface)] border border-(--p-line) bg-(--p-surface) p-8 shadow-(--p-shadow-floating) max-sm:rounded-[var(--radius-panel)] max-sm:p-6">
       <div className="mb-6 grid gap-2">
-        <h1 className="font-display text-[34px] leading-[1.1] font-normal tracking-[-0.035em] text-balance">{title}</h1>
-        <p className="text-sm leading-[1.45] text-(--p-fg2) text-pretty">{subtitle}</p>
+        <h1 className="font-display text-[34px] leading-[1.1] font-normal tracking-[-0.035em] text-balance">
+          {title}
+        </h1>
+        <p className="text-sm leading-[1.45] text-(--p-fg2) text-pretty">
+          {subtitle}
+        </p>
       </div>
       {children}
     </div>

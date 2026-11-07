@@ -7,19 +7,21 @@ import { FRAMES, KINDS, VIEW, shapePath, type SceneId } from "@/components/arc/b
 import artStyles from "@/components/arc/blocks/empty-states/empty-states.module.css";
 import { formatINR, parseToPaise } from "@/lib/money";
 import { cn } from "@/lib/utils";
+import { AppMark } from "@/components/brand/app-mark";
+import { Wordmark } from "@/components/brand/wordmark";
 
 export function Logo({ small = false }: { small?: boolean }) {
   return (
-    <div className="flex items-center">
-      <span className={cn("font-display font-semibold tracking-[-0.03em]", small ? "text-[18px]" : "text-[20px]")}>paisa</span>
-      <span className={cn("mt-1.5 ml-0.5 rounded-full bg-(--p-dot)", small ? "size-1.5" : "size-[7px]")} aria-hidden />
+    <div className="flex items-center gap-2">
+      <AppMark size={small ? 24 : 28} />
+      <Wordmark className={small ? "text-[19px]" : "text-[22px]"} />
     </div>
   );
 }
 
 export function SectionHeader({ title, right, className }: { title: string; right?: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("mb-5 flex flex-wrap items-center justify-between gap-3 px-1", className)}>
+    <div className={cn("mb-5 flex min-h-9 flex-wrap items-center justify-between gap-3 px-1", className)}>
       <h2 className="font-display text-[22px] font-normal tracking-[-0.03em]">{title}</h2>
       {right}
     </div>
@@ -108,7 +110,8 @@ export function AmountEdit({
       validate={(next) => (next.trim() === "" || parseToPaise(next) != null ? null : "Enter an amount like 12500 or 12500.50")}
       onSave={async (next) => {
         const p = next.trim() === "" ? 0 : parseToPaise(next);
-        if (p == null || p === value) return;
+        // With an empty state, saving the same 0 still means something (e.g. "my balance is ₹0").
+        if (p == null || (p === value && !(value === 0 && emptyText))) return;
         await onSave(p);
       }}
     />
@@ -163,5 +166,22 @@ export function EmptyState({
 export function Kbd({ children }: { children: React.ReactNode }) {
   return (
     <span className="rounded-md border border-(--p-line) bg-(--p-surface2) px-1.5 py-px font-mono text-[11px] text-(--p-fg2)">{children}</span>
+  );
+}
+
+export function Stat({ label, value, tone }: { label: string; value: string; tone?: "pos" | "warn" }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-xs text-(--p-fg3)">{label}</div>
+      <div
+        className={cn(
+          "mt-1 truncate font-display text-[20px] tracking-[-.02em]",
+          tone === "pos" && "text-(--p-pos)",
+          tone === "warn" && "text-(--p-warn)",
+        )}
+      >
+        {value}
+      </div>
+    </div>
   );
 }

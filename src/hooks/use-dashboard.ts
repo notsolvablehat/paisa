@@ -1,9 +1,15 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useUI } from "@/stores/ui";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import type { ActionResult } from "@/server/actions";
-import type { DashboardData } from "@/lib/types";
+import type { DashboardData, LedgerData, RemindersData } from "@/lib/types";
 
 export class HttpError extends Error {
   constructor(public status: number) {
@@ -11,19 +17,24 @@ export class HttpError extends Error {
   }
 }
 
-export const dashboardKey = (month: string | null) => ["dashboard", month ?? "current"] as const;
+export const dashboardKey = (month: string | null) =>
+  ["dashboard", month ?? "current"] as const;
 
 export function useDashboard(month: string | null) {
   return useQuery({
     queryKey: dashboardKey(month),
     queryFn: async ({ signal }): Promise<DashboardData> => {
       const qs = month ? `?month=${encodeURIComponent(month)}` : "";
-      const res = await fetch(`/api/dashboard${qs}`, { signal, cache: "no-store" });
+      const res = await fetch(`/api/dashboard${qs}`, {
+        signal,
+        cache: "no-store",
+      });
       if (!res.ok) throw new HttpError(res.status);
       return res.json();
     },
     placeholderData: keepPreviousData,
-    retry: (count, err) => !(err instanceof HttpError && err.status === 401) && count < 1,
+    retry: (count, err) =>
+      !(err instanceof HttpError && err.status === 401) && count < 1,
   });
 }
 
@@ -31,10 +42,23 @@ export function useDashboard(month: string | null) {
 export function useToast() {
   const { toast } = useToastStack();
   return {
-    success: (title: string, description?: string) => toast({ type: "success", title, description }),
-    error: (title: string, description?: string) => toast({ type: "error", title, description }),
-    info: (title: string, opts: { description?: string; action?: { label: string; onClick: () => void } } = {}) =>
-      toast({ type: "info", title, description: opts.description, action: opts.action }),
+    success: (title: string, description?: string) =>
+      toast({ type: "success", title, description }),
+    error: (title: string, description?: string) =>
+      toast({ type: "error", title, description }),
+    info: (
+      title: string,
+      opts: {
+        description?: string;
+        action?: { label: string; onClick: () => void };
+      } = {},
+    ) =>
+      toast({
+        type: "info",
+        title,
+        description: opts.description,
+        action: opts.action,
+      }),
   };
 }
 
@@ -42,7 +66,10 @@ export function useToast() {
  * Runs a server action, shows its error as a toast, and refreshes the
  * dashboard on success. The server is the source of truth for every number.
  */
-export function useAction<I, O>(fn: (input: I) => Promise<ActionResult<O>>, opts: { success?: string } = {}) {
+export function useAction<I, O>(
+  fn: (input: I) => Promise<ActionResult<O>>,
+  opts: { success?: string } = {},
+) {
   const qc = useQueryClient();
   const toast = useToast();
   return useMutation({
@@ -54,7 +81,56 @@ export function useAction<I, O>(fn: (input: I) => Promise<ActionResult<O>>, opts
     onSuccess: () => {
       if (opts.success) toast.success(opts.success);
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Something went wrong"),
+    onError: (err) =>
+      toast.error(err instanceof Error ? err.message : "Something went wrong"),
     onSettled: () => qc.invalidateQueries({ queryKey: ["dashboard"] }),
   });
+}
+
+/** Spends + income in a date range. Keyed under "dashboard" so every mutation refreshes it too. */
+export function useLedger(from: string, to: string) {
+  return useQuery({
+    queryKey: ["dashboard", "ledger", from, to] as const,
+    queryFn: async ({ signal }): Promise<LedgerData> => {
+      const res = await fetch(
+        `/api/ledger?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+        { signal, cache: "no-store" },
+      );
+      if (!res.ok) throw new HttpError(res.status);
+      return res.json();
+    },
+    placeholderData: keepPreviousData,
+    retry: (count, err) =>
+      !(err instanceof HttpError && err.status === 401) && count < 1,
+  });
+}
+
+export function useReminders(from: string, to: string) {
+  return useQuery({
+    queryKey: ["dashboard", "reminders", from, to] as const,
+    queryFn: async ({ signal }): Promise<RemindersData> => {
+      const res = await fetch(
+        `/api/reminders?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+        { signal, cache: "no-store" },
+      );
+      if (!res.ok) throw new HttpError(res.status);
+      return res.json();
+    },
+    placeholderData: keepPreviousData,
+    retry: (count, err) =>
+      !(err instanceof HttpError && err.status === 401) && count < 1,
+  });
+}
+
+/**
+ * Forget everything cached for the previous account. Query keys aren't scoped by user,
+ * so without this a client-side sign-out → sign-in showed the old account until reload.
+ */
+export function useResetSession() {
+  const qc = useQueryClient();
+  return () => {
+    qc.cancelQueries();
+    qc.clear();
+    useUI.getState().reset();
+  };
 }

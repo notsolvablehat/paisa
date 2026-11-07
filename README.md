@@ -22,6 +22,7 @@ npm run db:seed        # (dev server running) demo@paisa.local / paisa-demo-123
 | `npm run db:migrate` | Apply migrations |
 | `npm run db:studio` | Browse the database |
 | `npm run db:seed [-- email]` | Reset an account to the design's demo data |
+| `npm run db:seed:history -- email` | Replace an account's data with ~5 months of synthetic history |
 
 ## How it's put together
 
@@ -30,8 +31,11 @@ src/db/schema.ts        tables + constraints (money = bigint paise)
 src/server/queries.ts   reads (always scoped by session user id)
 src/server/actions.ts   writes: server actions, zod-validated, auth-checked
 src/lib/finance.ts      pure formulas (safe-to-spend, charts, bills…) — tested
-src/app/api/dashboard   GET endpoint TanStack Query reads from
-src/components/dashboard/*  UI sections matching the design
+src/app/api/dashboard   GET endpoint TanStack Query reads from (one month)
+src/app/api/ledger      GET spends + income for a date range (/transactions)
+src/app/api/reminders   GET reminders for a date range, plus anything overdue (/reminders)
+src/components/dashboard/*  overview sections, app shell (header, quick add)
+src/components/transactions, reminders  the two list pages (filters, table, totals)
 src/components/arc/*        uiarc components (owned copies — see notes below)
 src/app/(auth)/*            /sign-in and /sign-up
 src/stores/ui.ts        Zustand: viewed month, chart range, modal state
@@ -44,6 +48,14 @@ src/stores/ui.ts        Zustand: viewed month, chart range, modal state
 - **Database constraints** back up validation: positive amounts, name lengths, colour/icon formats, unique category names per user (case-insensitive), a bill can only be paid once, recurring bills can't duplicate an occurrence.
 - **Goal contributions** lock the goal row so concurrent assigns can't overshoot the target.
 - **Balance** = adjustment + Σ income − Σ spends up to today; "click to correct" stores only the adjustment, so history stays intact.
+
+## Pages
+
+- `/` Overview — safe-to-spend, spending, recent spends, what's due, income, goals, budgets. Month picker in the title row.
+- `/transactions` — every spend and income in a date range: search, filter chips (type, category, source, amount), sortable table, totals and a spend-by-category donut.
+- `/reminders` — every bill occurrence in a range (overdue always included): tick paid, edit, stop; fixed costs per month.
+
+Reminders are paid in order: a recurring bill can't be ticked while an earlier one is unpaid, and unticking removes the next occurrence that ticking created.
 
 ## Security
 
@@ -59,5 +71,5 @@ src/stores/ui.ts        Zustand: viewed month, chart range, modal state
 
 - Add more components with `npx shadcn@latest add @uiarc/<name>` (registry is in `components.json`).
 - Theme: `foundation.css` is loaded first; `globals.css` re-points uiarc tokens (`--accent`, `--surface`, …) at the paisa palette (`--p-*`, Graphite + Coral). Dark mode = `data-theme="dark"` on `<html>`.
-- Local fixes to the copied files (re-apply if you re-install them): `dialog`, `tabs` and `tooltip` used a `render` prop / bare trigger that current Radix doesn't support → switched to `asChild`.
+- Local fixes to the copied files (re-apply if you re-install them): `dialog`, `tabs` and `tooltip` used a `render` prop / bare trigger that current Radix doesn't support → switched to `asChild`. `morph-select` rows are capped to the panel width.
 - `next.config.ts` keeps the Tailwind loader off `*.module.css` (uiarc's CSS modules use `:global()` selectors it can't parse).

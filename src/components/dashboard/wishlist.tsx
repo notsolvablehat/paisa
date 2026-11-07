@@ -14,7 +14,7 @@ export function Wishlist({ data }: { data: DashboardData }) {
   const n = data.goals.length;
 
   return (
-    <section aria-label="Wishlist" id="wishlist" className="scroll-mt-24">
+    <section aria-label="Wishlist" data-tour="goals" id="wishlist" className="scroll-mt-24">
       <SectionHeader
         title="Wishlist"
         right={

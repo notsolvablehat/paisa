@@ -53,7 +53,7 @@ export function QuickAdd({ data }: { data: DashboardData }) {
       <DialogContent
         title={editing ? "Edit spend" : "Quick add"}
         description={editing ? undefined : "Ctrl K opens this from anywhere."}
-        className="w-[min(calc(100vw-32px),560px)]!"
+        className="w-[min(calc(100vw-32px),560px)]! [@media(min-height:720px)]:overflow-visible!"
         // The form focuses the amount itself; skip Radix's "first focusable" default.
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
@@ -281,6 +281,7 @@ function QuickAddForm({ data }: { data: DashboardData }) {
             }))}
             value={goalId}
             onValueChange={(v) => setGoalId(v)}
+            panelWidth={360}
           />
         ))}
 

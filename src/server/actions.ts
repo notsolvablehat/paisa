@@ -222,10 +222,22 @@ const _setBillPaid = action(z.object({ billId: id, paid: z.boolean() }), async (
         .for("update"),
       "bill",
     );
+    const nextDue = addMonthsToDate(b.dueOn, b.recurrence === "Yearly" ? 12 : 1);
     if (!d.paid) {
       await tx.delete(txn).where(and(eq(txn.billId, b.id), eq(txn.userId, userId)));
+      // Drop the next occurrence that paying created, as long as nothing has been paid against it.
+      if (b.recurrence !== "Once") {
+        await tx.execute(sql`
+          delete from bill nb where nb.user_id = ${userId} and nb.series_id = ${b.seriesId} and nb.due_on = ${nextDue}
+            and not exists (select 1 from "transaction" t where t.bill_id = nb.id)`);
+      }
       return;
     }
+    // Occurrences are paid in order: an earlier unpaid one has to be ticked first.
+    const earlier = await tx.execute(sql`
+      select 1 from bill eb where eb.user_id = ${userId} and eb.series_id = ${b.seriesId} and eb.due_on < ${b.dueOn}
+        and not exists (select 1 from "transaction" t where t.bill_id = eb.id) limit 1`);
+    if (earlier.rows.length) throw new UserError(`Pay the earlier ${b.name} first.`);
     // Unique index on transaction.bill_id makes double-paying impossible.
     await tx
       .insert(txn)
@@ -241,7 +253,7 @@ const _setBillPaid = action(z.object({ billId: id, paid: z.boolean() }), async (
           amount: b.amount,
           recurrence: b.recurrence,
           categoryId: b.categoryId,
-          dueOn: addMonthsToDate(b.dueOn, b.recurrence === "Monthly" ? 1 : 12),
+          dueOn: nextDue,
         })
         .onConflictDoNothing();
     }
@@ -249,6 +261,44 @@ const _setBillPaid = action(z.object({ billId: id, paid: z.boolean() }), async (
 });
 export async function setBillPaid(input: { billId: string; paid: boolean }) {
   return _setBillPaid(input);
+}
+
+const billEditInput = billInput.extend({ billId: id, categoryId: id });
+/** Edits an unpaid occurrence; later occurrences copy it when they're created. */
+const _updateBill = action(billEditInput, async (userId, d) => {
+  await db.transaction(async (tx) => {
+    const b = assertFound(
+      await tx.select().from(bill).where(and(eq(bill.id, d.billId), eq(bill.userId, userId))).for("update"),
+      "reminder",
+    );
+    const [paid] = await tx.select({ id: txn.id }).from(txn).where(eq(txn.billId, b.id));
+    if (paid) throw new UserError("Mark it unpaid before editing.");
+    await tx
+      .update(bill)
+      .set({ name: d.name, amount: d.amount, dueOn: d.dueOn, recurrence: d.recurrence, categoryId: d.categoryId })
+      .where(and(eq(bill.id, b.id), eq(bill.userId, userId)));
+  });
+});
+export async function updateBill(input: z.input<typeof billEditInput>) {
+  return _updateBill(input);
+}
+
+/** Stops a reminder: removes this and any later unpaid occurrences. Paid ones stay as history. */
+const _deleteBill = action(z.object({ billId: id }), async (userId, d) => {
+  return db.transaction(async (tx) => {
+    const b = assertFound(
+      await tx.select().from(bill).where(and(eq(bill.id, d.billId), eq(bill.userId, userId))).for("update"),
+      "reminder",
+    );
+    const res = await tx.execute(sql`
+      delete from bill nb where nb.user_id = ${userId} and nb.series_id = ${b.seriesId} and nb.due_on >= ${b.dueOn}
+        and not exists (select 1 from "transaction" t where t.bill_id = nb.id)`);
+    if (!res.rowCount) throw new UserError("Paid reminders can't be deleted. Mark it unpaid first.");
+    return res.rowCount;
+  });
+});
+export async function deleteBill(input: { billId: string }) {
+  return _deleteBill(input);
 }
 
 /* ───────────────────────────── budgets & categories ───────────────────────────── */
@@ -302,7 +352,7 @@ const _setBalance = action(balanceInput, async (userId, d) => {
     update ${settings} set balance_adjustment = ${d.amount}
       - coalesce((select sum(${income.amount}) from ${income} where ${income.userId} = ${userId} and ${income.receivedOn} <= ${today}), 0)
       + coalesce((select sum(${txn.amount}) from ${txn} where ${txn.userId} = ${userId} and ${txn.occurredOn} <= ${today}), 0),
-      updated_at = now()
+      balance_set_at = now(), updated_at = now()
     where ${settings.userId} = ${userId}`);
 });
 export async function setBalance(input: z.input<typeof balanceInput>) {

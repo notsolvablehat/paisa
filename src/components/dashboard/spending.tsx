@@ -1,15 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useMemo } from "react";
 import { BarChart } from "@/components/arc/bar-chart/bar-chart";
 import { Button } from "@/components/arc/button/button";
 import { LineChart, type LineChartSeries } from "@/components/arc/line-chart/line-chart";
 import { Tooltip } from "@/components/arc/tooltip/tooltip";
-import { deleteSpend, restoreSpend, updateCategoryBudget } from "@/server/actions";
-import { useAction, useToast } from "@/hooks/use-dashboard";
-import { dayMonth, monthLabel } from "@/lib/dates";
+import { updateCategoryBudget } from "@/server/actions";
+import { useAction } from "@/hooks/use-dashboard";
+import { useDeleteSpend } from "@/hooks/use-delete-spend";
+import { dayMonth, monthLabel, monthRange } from "@/lib/dates";
 import { buildChart, categoryRows, type Range, type Summary } from "@/lib/finance";
-import { formatINR } from "@/lib/money";
+import { formatINR, formatTotalINR } from "@/lib/money";
 import type { DashboardData } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useUI } from "@/stores/ui";
@@ -26,7 +28,7 @@ export function Spending({ data, s }: { data: DashboardData; s: Summary }) {
         title="Spending"
         right={
           <span className="text-[13px] text-(--p-fg3)">
-            {formatINR(s.spent)} of {formatINR(data.settings.monthlyBudget)}
+            {data.settings.monthlyBudget > 0 ? `${formatINR(s.spent)} of ${formatINR(data.settings.monthlyBudget)}` : `${formatTotalINR(s.spent)} spent`}
           </span>
         }
       />
@@ -34,7 +36,6 @@ export function Spending({ data, s }: { data: DashboardData; s: Summary }) {
         <SpendChart data={data} s={s} />
         <CategoryList data={data} />
       </div>
-      <Transactions data={data} />
     </section>
   );
 }
@@ -55,7 +56,7 @@ function SpendChart({ data, s }: { data: DashboardData; s: Summary }) {
   const period = range === "year" ? `${data.history.years[0].year}–${data.history.years[2].year}` : range === "month" ? c.caption.replace(/^Spent /, "") : monthLabel(data.month);
 
   return (
-    <Panel className="min-w-0">
+    <Panel className="min-w-0" data-tour="spending">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="text-[13px] text-(--p-fg2)">{c.caption}</div>
         <Segmented<Range>
@@ -87,7 +88,7 @@ function SpendChart({ data, s }: { data: DashboardData; s: Summary }) {
       ) : (
         <>
           <div className="mb-2">
-            <div className="font-display text-[clamp(28px,3cqw,36px)] tracking-[-.03em]">{formatINR(c.total)}</div>
+            <div className="font-display text-[clamp(28px,3cqw,36px)] tracking-[-.03em]">{formatTotalINR(c.total)}</div>
             <div className="text-xs text-(--p-fg3)">{period}</div>
           </div>
           <LineChart
@@ -180,33 +181,28 @@ function CategoryList({ data }: { data: DashboardData }) {
 
 /* ───────────────────────────── transactions ───────────────────────────── */
 
-function Transactions({ data }: { data: DashboardData }) {
-  const [showAll, setShowAll] = useState(false);
+/** The latest few spends of the viewed month; the full list lives on /transactions. */
+export function RecentTransactions({ data, limit = 7 }: { data: DashboardData; limit?: number }) {
   const openModal = useUI((s) => s.openModal);
-  const toast = useToast();
-  const del = useAction(deleteSpend);
-  const restore = useAction(restoreSpend, { success: "Restored" });
+  const onDelete = useDeleteSpend();
   const catBy = useMemo(() => new Map(data.categories.map((c) => [c.id, c])), [data.categories]);
-  const list = showAll ? data.transactions : data.transactions.slice(0, 7);
-
-  const onDelete = (id: string) =>
-    del.mutate(
-      { id },
-      {
-        onSuccess: (row) =>
-          toast.info("Spend deleted", {
-            description: row.billId ? "The linked bill is marked unpaid again." : undefined,
-            action: { label: "Undo", onClick: () => restore.mutate(row) },
-          }),
-      },
-    );
+  const list = data.transactions.slice(0, limit);
 
   return (
-    <Panel className="mt-4">
-      <div className="mb-2 flex items-baseline justify-between">
-        <h3 className="text-sm font-medium">{showAll ? "All transactions" : "Recent transactions"}</h3>
-        <span className="text-xs text-(--p-fg3)">{data.transactions.length} this month</span>
-      </div>
+    <section aria-label="Recent transactions" className="flex min-w-0 flex-col">
+      <SectionHeader
+        title="Recent"
+        right={
+          <Link
+            href={`/transactions?from=${monthRange(data.month).start}&to=${monthRange(data.month).end}`}
+            className="flex items-center gap-1 text-[13px] font-medium text-(--p-fg2) transition-colors hover:text-(--p-ink)"
+          >
+            View all{data.transactions.length > limit ? ` ${data.transactions.length}` : ""}
+            <i className="ri-arrow-right-line text-[15px]" aria-hidden />
+          </Link>
+        }
+      />
+    <Panel className="flex-1">
       {list.length === 0 && (
         <EmptyState
           scene="inbox"
@@ -262,13 +258,7 @@ function Transactions({ data }: { data: DashboardData }) {
           );
         })}
       </ul>
-      {data.transactions.length > 7 && (
-        <div className="mt-3">
-          <Button size="sm" variant="ghost" onClick={() => setShowAll(!showAll)}>
-            {showAll ? "Show fewer" : `Show all ${data.transactions.length}`}
-          </Button>
-        </div>
-      )}
     </Panel>
+    </section>
   );
 }

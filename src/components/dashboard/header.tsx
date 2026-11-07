@@ -1,62 +1,116 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { flushSync } from "react-dom";
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo, useRef, useSyncExternalStore } from "react";
 import { Button } from "@/components/arc/button/button";
-import { ExpandingSearch, type ExpandingSearchItem } from "@/components/arc/expanding-search/expanding-search";
-import { ThemeSwitch, type Theme } from "@/components/arc/theme-switch/theme-switch";
+import {
+  ExpandingSearch,
+  type ExpandingSearchItem,
+} from "@/components/arc/expanding-search/expanding-search";
+import {
+  UserMenu,
+  type ThemePreference,
+} from "@/components/arc/user-menu/user-menu";
 import { Tooltip } from "@/components/arc/tooltip/tooltip";
 import { signOut } from "@/lib/auth-client";
-import { addMonths, dayMonth, monthLabel } from "@/lib/dates";
-import type { Range } from "@/lib/finance";
+import { useResetSession } from "@/hooks/use-dashboard";
+import { avatarDataUri } from "@/lib/avatar";
+import { dayMonth } from "@/lib/dates";
 import { formatINR } from "@/lib/money";
 import type { DashboardData } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { useUI } from "@/stores/ui";
-import { Kbd, Logo, Segmented } from "./primitives";
+import { Kbd, Logo } from "./primitives";
 
-const iconBtn =
-  "grid place-items-center rounded-full text-(--p-fg3) transition-colors hover:bg-(--p-surface2) hover:text-(--p-ink) disabled:opacity-30 disabled:hover:bg-transparent";
+export type Page = "overview" | "transactions" | "reminders";
+
+const NAV: { page: Page; href: string; label: string; icon: string }[] = [
+  {
+    page: "overview",
+    href: "/",
+    label: "Overview",
+    icon: "ri-dashboard-horizontal-line",
+  },
+  {
+    page: "transactions",
+    href: "/transactions",
+    label: "Transactions",
+    icon: "ri-list-unordered",
+  },
+  {
+    page: "reminders",
+    href: "/reminders",
+    label: "Reminders",
+    icon: "ri-calendar-event-line",
+  },
+];
 
 const noop = () => () => {};
 
-/** Reveal the new theme as a circle growing from the switch (View Transitions; plain swap elsewhere). */
+/**
+ * Theme preference (light / dark / system). A change that flips the visible theme is revealed
+ * as a circle growing from `origin` (View Transitions; plain swap elsewhere or with reduced motion).
+ */
 export function useThemeToggle() {
-  const { resolvedTheme, setTheme } = useTheme();
+  const { theme, resolvedTheme, systemTheme, setTheme } = useTheme();
   // next-themes only knows the theme after hydration.
-  const mounted = useSyncExternalStore(noop, () => true, () => false);
-  const theme: Theme = mounted && resolvedTheme === "dark" ? "dark" : "light";
-  const change = (next: Theme, _variant: unknown, trigger: HTMLElement) => {
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!document.startViewTransition || reduce) return setTheme(next);
-    const r = trigger.getBoundingClientRect();
-    const x = r.left + r.width / 2, y = r.top + r.height / 2;
+  const mounted = useSyncExternalStore(
+    noop,
+    () => true,
+    () => false,
+  );
+  const preference: ThemePreference =
+    mounted && (theme === "dark" || theme === "system") ? theme : "light";
+  const change = (next: ThemePreference, origin?: HTMLElement | null) => {
+    const nextResolved = next === "system" ? systemTheme : next;
+    const reduce = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    if (
+      !document.startViewTransition ||
+      reduce ||
+      !origin ||
+      nextResolved === resolvedTheme
+    )
+      return setTheme(next);
+    const r = origin.getBoundingClientRect();
+    const x = r.left + r.width / 2,
+      y = r.top + r.height / 2;
     const root = document.documentElement.style;
     root.setProperty("--x", `${x}px`);
     root.setProperty("--y", `${y}px`);
-    root.setProperty("--r", `${Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y))}px`);
+    root.setProperty(
+      "--r",
+      `${Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y))}px`,
+    );
     document.startViewTransition(() => flushSync(() => setTheme(next)));
   };
-  return { theme, change };
+  return { preference, change };
 }
 
-export function Header({ data, userName, loading }: { data: DashboardData; userName: string; loading: boolean }) {
+export type SessionUser = { name: string; email: string };
+
+export function Header({
+  data,
+  user,
+  page,
+}: {
+  data: DashboardData;
+  user: SessionUser;
+  page: Page;
+}) {
   const router = useRouter();
-  const setMonth = useUI((s) => s.setMonth);
-  const range = useUI((s) => s.range);
-  const setRange = useUI((s) => s.setRange);
   const openModal = useUI((s) => s.openModal);
-  const { theme, change } = useThemeToggle();
+  const setWelcomeOpen = useUI((s) => s.setWelcomeOpen);
+  const { preference, change } = useThemeToggle();
 
-  const current = data.today.slice(0, 7);
-  const go = (n: number) => {
-    const next = addMonths(data.month, n);
-    setMonth(next === current ? null : next);
-  };
-  const topRange: Range = range === "week" ? "day" : range;
-
-  const catBy = useMemo(() => new Map(data.categories.map((c) => [c.id, c])), [data.categories]);
+  const catBy = useMemo(
+    () => new Map(data.categories.map((c) => [c.id, c])),
+    [data.categories],
+  );
   const searchItems = useMemo<ExpandingSearchItem[]>(
     () => [
       ...data.transactions.map((t) => {
@@ -66,7 +120,13 @@ export function Header({ data, userName, loading }: { data: DashboardData; userN
           title: t.note || c?.name || "Spend",
           meta: `${formatINR(t.amount)} · ${dayMonth(t.date)} · ${c?.name ?? ""}`,
           group: "Spends this month",
-          icon: <i className={c?.icon ?? "ri-receipt-line"} style={{ color: c?.color }} aria-hidden />,
+          icon: (
+            <i
+              className={c?.icon ?? "ri-receipt-line"}
+              style={{ color: c?.color }}
+              aria-hidden
+            />
+          ),
           keywords: [c?.name ?? ""],
         };
       }),
@@ -92,87 +152,124 @@ export function Header({ data, userName, loading }: { data: DashboardData; userN
     const [kind, id] = item.id.split(":");
     if (kind === "tx") {
       const t = data.transactions.find((x) => x.id === id);
-      if (t) openModal("Spend", { editTxId: t.id, amount: t.amount, categoryId: t.categoryId, note: t.note, date: t.date });
+      if (t)
+        openModal("Spend", {
+          editTxId: t.id,
+          amount: t.amount,
+          categoryId: t.categoryId,
+          note: t.note,
+          date: t.date,
+        });
     } else {
-      document.getElementById(kind === "bill" ? "coming-up" : "wishlist")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (kind === "bill") router.push("/reminders");
+      else if (page === "overview")
+        document
+          .getElementById("wishlist")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      else router.push("/#wishlist");
     }
   };
 
-  const monthNav = (short: boolean) => (
-    <div className="flex items-center gap-0.5">
-      <button type="button" aria-label="Previous month" onClick={() => go(-1)} className={`${iconBtn} size-8`}>
-        <i className="ri-arrow-left-s-line text-[20px]" aria-hidden />
-      </button>
-      <button
-        type="button"
-        onClick={() => setMonth(null)}
-        title="Back to this month"
-        className="min-w-[118px] text-center text-sm font-medium"
-        aria-live="polite"
-      >
-        {monthLabel(data.month, short)}
-        {loading && <span className="sr-only"> loading</span>}
-      </button>
-      <button type="button" aria-label="Next month" onClick={() => go(1)} disabled={data.month >= current} className={`${iconBtn} size-8`}>
-        <i className="ri-arrow-right-s-line text-[20px]" aria-hidden />
-      </button>
-    </div>
+  const nav = (compact: boolean) => (
+    <nav aria-label="Pages" data-tour="nav" className="flex items-center gap-1">
+      {NAV.map((n) => (
+        <Link
+          key={n.page}
+          href={n.href}
+          aria-current={page === n.page ? "page" : undefined}
+          className={cn(
+            "flex items-center gap-1.5 rounded-full font-medium transition-colors",
+            compact ? "h-9 px-3 text-[13px]" : "h-9 px-3.5 text-sm",
+            page === n.page
+              ? "bg-(--p-surface2) text-(--p-ink)"
+              : "text-(--p-fg3) hover:text-(--p-ink)",
+          )}
+        >
+          <i className={cn(n.icon, "text-[16px]")} aria-hidden />
+          {n.label}
+        </Link>
+      ))}
+    </nav>
   );
 
+  const resetSession = useResetSession();
   const doSignOut = async () => {
     await signOut();
     router.replace("/sign-in");
     router.refresh();
+    resetSession();
   };
+
+  // One menu per layout (desktop / mobile); the theme reveal grows from whichever avatar was used.
+  const avatarSrc = useMemo(() => avatarDataUri(user.email), [user.email]);
+  const desktopMenu = useRef<HTMLButtonElement>(null);
+  const mobileMenu = useRef<HTMLButtonElement>(null);
+  const userMenu = (ref: React.RefObject<HTMLButtonElement | null>) => (
+    <UserMenu
+      ref={ref}
+      user={{ name: user.name, email: user.email, avatarSrc }}
+      theme={preference}
+      onThemeChange={(t) => change(t, ref.current)}
+      items={[
+        {
+          label: "How paisa works",
+          icon: <i className="ri-question-line text-[15px]" aria-hidden />,
+          onSelect: () => setWelcomeOpen(true),
+        },
+      ]}
+      onSignOut={doSignOut}
+    />
+  );
 
   return (
     <header className="sticky top-0 z-20 border-b border-(--p-line) bg-(--p-bg)/85 backdrop-blur-md">
       {/* Desktop */}
-      <div className="mx-auto hidden h-[68px] max-w-[1240px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 px-[clamp(20px,4vw,56px)] md:grid">
-        <Logo />
-        <div className="flex items-center gap-4">
-          {monthNav(false)}
-          <Segmented<Range>
-            ariaLabel="Chart range"
-            options={["day", "month", "year"]}
-            labels={{ day: "Day", month: "Month", year: "Year" }}
-            value={topRange}
-            onChange={setRange}
-          />
+      <div className="mx-auto hidden h-[68px] max-w-[1240px] grid-cols-[auto_minmax(0,1fr)] items-center gap-6 px-[clamp(20px,4vw,56px)] md:grid">
+        <div className="flex items-center gap-6">
+          <Logo />
+          {nav(false)}
         </div>
         <div className="flex items-center justify-end gap-2">
-          <ExpandingSearch
-            label="Search spends, bills and goals"
-            placeholder="Search spends, bills, goals"
-            items={searchItems}
-            onSelect={onSelect}
-            anchor="end"
-            expandedWidth={320}
-            emptyHint="Try a category, a shop or a bill name."
-          />
-          <Tooltip content={<span className="flex items-center gap-1.5">Quick add <Kbd>Ctrl K</Kbd></span>} side="bottom">
-            <Button size="sm" onClick={() => openModal("Spend")}>
+          <div className="w-[clamp(220px,24vw,320px)]">
+            <ExpandingSearch
+              label="Search spends, bills and goals"
+              placeholder="Search spends, bills, goals"
+              items={searchItems}
+              onSelect={onSelect}
+              anchor="end"
+              expandedWidth={320}
+              emptyHint="Try a category, a shop or a bill name."
+            />
+          </div>
+          <Tooltip
+            content={
+              <span className="flex items-center gap-1.5">
+                Quick add <Kbd>Ctrl K</Kbd>
+              </span>
+            }
+            side="bottom"
+          >
+            <Button
+              size="sm"
+              data-tour="add"
+              onClick={() => openModal("Spend")}
+            >
               <i className="ri-add-line text-[16px]" aria-hidden />
               Add
             </Button>
           </Tooltip>
-          <ThemeSwitch iconOnly theme={theme} onThemeChange={change} />
-          <Tooltip content={`Signed in as ${userName} · Sign out`} side="bottom">
-            <button type="button" aria-label="Sign out" onClick={doSignOut} className={`${iconBtn} size-9`}>
-              <i className="ri-logout-box-r-line text-[18px]" aria-hidden />
-            </button>
-          </Tooltip>
+          <div className="ml-1">{userMenu(desktopMenu)}</div>
         </div>
       </div>
 
       {/* Mobile */}
       <div className="flex h-14 items-center gap-1 px-4 md:hidden">
         <Logo small />
-        <div className="flex flex-1 justify-center">{monthNav(true)}</div>
-        <ThemeSwitch iconOnly theme={theme} onThemeChange={change} />
-        <button type="button" aria-label="Sign out" onClick={doSignOut} className={`${iconBtn} size-11`}>
-          <i className="ri-logout-box-r-line text-[18px]" aria-hidden />
-        </button>
+        <div className="flex-1" />
+        {userMenu(mobileMenu)}
+      </div>
+      <div className="flex justify-center border-t border-(--p-line) py-1.5 md:hidden">
+        {nav(true)}
       </div>
     </header>
   );

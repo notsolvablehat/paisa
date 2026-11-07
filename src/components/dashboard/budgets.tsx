@@ -13,7 +13,7 @@ export function Budgets({ data, s }: { data: DashboardData; s: Summary }) {
   const hardScale = Math.max(B.hardLimit, B.monthlyBudget, s.spent, 1) * 1.12;
 
   const edit = (key: "monthly" | "daily" | "hard", value: number, label: string) => (
-    <AmountEdit value={value} label={label} variant="title" onSave={(amount) => save.mutateAsync({ key, amount })} />
+    <AmountEdit value={value} label={label} variant="title" emptyText="Set amount" onSave={(amount) => save.mutateAsync({ key, amount })} />
   );
 
   return (
@@ -25,8 +25,14 @@ export function Budgets({ data, s }: { data: DashboardData; s: Summary }) {
           <div className="font-display text-[32px] tracking-[-.03em]">{edit("monthly", B.monthlyBudget, "Monthly budget")}</div>
           <ProgressBar pct={s.usedPct} />
           <div className="text-xs text-(--p-fg3)">
-            {formatINR(s.spent)} spent · {formatINR(Math.max(0, s.budgetLeft))} left
-            {s.budgetLeft < 0 && <span className="text-(--p-warn)"> · {formatINR(-s.budgetLeft)} over</span>}
+            {B.monthlyBudget > 0 ? (
+              <>
+                {formatINR(s.spent)} spent · {formatINR(Math.max(0, s.budgetLeft))} left
+                {s.budgetLeft < 0 && <span className="text-(--p-warn)"> · {formatINR(-s.budgetLeft)} over</span>}
+              </>
+            ) : (
+              "Drives your safe-to-spend number"
+            )}
           </div>
         </Panel>
 
@@ -58,7 +64,9 @@ export function Budgets({ data, s }: { data: DashboardData; s: Summary }) {
             <div className="absolute -inset-y-2 -ml-px w-[3px] rounded-full bg-(--p-accent)" style={{ left: `${(B.hardLimit / hardScale) * 100}%` }} />
           </div>
           <div className="text-xs text-(--p-fg3)">
-            {formatINR(Math.max(0, B.hardLimit - s.spent))} of room before the line · budget mark at {formatINR(B.monthlyBudget)}
+            {B.hardLimit > 0
+              ? `${formatINR(Math.max(0, B.hardLimit - s.spent))} of room before the line · budget mark at ${formatINR(B.monthlyBudget)}`
+              : "A line you never want to cross this month"}
           </div>
         </Panel>
       </div>

@@ -15,5 +15,5 @@ export default function Page() {
 async function AuthedDashboard() {
   const user = await getSessionUser();
   if (!user) redirect("/sign-in");
-  return <Dashboard userName={user.name} />;
+  return <Dashboard user={{ name: user.name, email: user.email }} />;
 }

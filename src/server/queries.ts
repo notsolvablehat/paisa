@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gte, isNull, lte, or, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { INCOME_SOURCES, type IncomeSource } from "@/lib/constants";
 import { addMonths, addDays, monthRange, parseISO } from "@/lib/dates";
-import type { DashboardData, Income } from "@/lib/types";
+import type { DashboardData, Income, LedgerData, LedgerRow, RemindersData } from "@/lib/types";
 import { provisionNewUser } from "./provision";
 
 const { settings, category, transaction: txn, income, goal, goalContribution, bill } = schema;
@@ -104,8 +104,14 @@ export async function getDashboard(userId: string, month: string, today: string)
         and(
           eq(bill.userId, userId),
           or(
-            // Unpaid: everything overdue plus the next ~3 months.
-            and(isNull(txn.id), lte(bill.dueOn, addDays(end, 90))),
+            // Unpaid: the earliest open occurrence of each series (overdue or within ~3 months).
+            and(
+              isNull(txn.id),
+              lte(bill.dueOn, addDays(end, 90)),
+              sql`not exists (
+                select 1 from bill eb where eb.user_id = ${bill.userId} and eb.series_id = ${bill.seriesId}
+                  and eb.due_on < ${bill.dueOn} and not exists (select 1 from "transaction" t where t.bill_id = eb.id))`,
+            ),
             // Paid: only what belongs to the viewed month.
             and(gte(bill.dueOn, start), lte(bill.dueOn, end)),
           ),
@@ -113,11 +119,11 @@ export async function getDashboard(userId: string, month: string, today: string)
       )
       .orderBy(asc(bill.dueOn), asc(bill.name)),
     db
-      .select({ v: sumPaise(income.amount) })
+      .select({ v: sumPaise(income.amount), n: sql<number>`count(*)::int`.mapWith(Number) })
       .from(income)
       .where(and(eq(income.userId, userId), lte(income.receivedOn, today))),
     db
-      .select({ v: sumPaise(txn.amount) })
+      .select({ v: sumPaise(txn.amount), n: sql<number>`count(*)::int`.mapWith(Number) })
       .from(txn)
       .where(and(eq(txn.userId, userId), lte(txn.occurredOn, today))),
     db
@@ -169,6 +175,7 @@ export async function getDashboard(userId: string, month: string, today: string)
     month,
     settings: { monthlyBudget: s.monthlyBudget, dailyBudget: s.dailyBudget, hardLimit: s.hardLimit },
     balance: s.balanceAdjustment + incTotal.v - spendTotal.v,
+    balanceKnown: s.balanceSetAt != null || incTotal.n > 0 || spendTotal.n > 0,
     categories,
     transactions,
     income: monthIncome as Income[],
@@ -187,4 +194,57 @@ export async function getDashboard(userId: string, month: string, today: string)
       }),
     },
   };
+}
+
+/** Hard cap on one ledger request; the UI narrows the date range beyond this. */
+export const LEDGER_LIMIT = 5000;
+
+/** Spends and income between two dates (inclusive), newest first, for the Transactions page. */
+export async function getLedger(userId: string, from: string, to: string): Promise<LedgerData> {
+  const [spends, incomes] = await Promise.all([
+    db
+      .select({ id: txn.id, amount: txn.amount, note: txn.note, date: txn.occurredOn, categoryId: txn.categoryId, billId: txn.billId })
+      .from(txn)
+      .where(and(eq(txn.userId, userId), gte(txn.occurredOn, from), lte(txn.occurredOn, to)))
+      .orderBy(desc(txn.occurredOn), desc(txn.createdAt))
+      .limit(LEDGER_LIMIT + 1),
+    db
+      .select({ id: income.id, amount: income.amount, note: income.note, date: income.receivedOn, source: income.source })
+      .from(income)
+      .where(and(eq(income.userId, userId), gte(income.receivedOn, from), lte(income.receivedOn, to)))
+      .orderBy(desc(income.receivedOn), desc(income.createdAt))
+      .limit(LEDGER_LIMIT + 1),
+  ]);
+  const rows: LedgerRow[] = [
+    ...spends.map((s) => ({ ...s, kind: "spend" as const, source: null })),
+    ...incomes.map((i) => ({ ...i, kind: "income" as const, categoryId: null, billId: null })),
+  ].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  const truncated = rows.length > LEDGER_LIMIT;
+  return { from, to, truncated, rows: rows.slice(0, LEDGER_LIMIT) };
+}
+
+/** Reminders due in [from, to], plus anything still unpaid from before `from` (it's overdue and actionable). */
+export async function getReminders(userId: string, from: string, to: string): Promise<RemindersData> {
+  const rows = await db
+    .select({
+      id: bill.id,
+      seriesId: bill.seriesId,
+      name: bill.name,
+      amount: bill.amount,
+      dueOn: bill.dueOn,
+      recurrence: bill.recurrence,
+      categoryId: bill.categoryId,
+      paidOn: txn.occurredOn,
+    })
+    .from(bill)
+    .leftJoin(txn, eq(txn.billId, bill.id))
+    .where(
+      and(
+        eq(bill.userId, userId),
+        or(and(gte(bill.dueOn, from), lte(bill.dueOn, to)), and(isNull(txn.id), sql`${bill.dueOn} < ${from}`)),
+      ),
+    )
+    .orderBy(asc(bill.dueOn), asc(bill.name))
+    .limit(LEDGER_LIMIT);
+  return { from, to, rows };
 }

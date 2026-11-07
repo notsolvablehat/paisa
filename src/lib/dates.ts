@@ -94,3 +94,12 @@ export function monthLabel(month: string, short = false): string {
   const { y, m } = parseISO(month);
   return `${(short ? MONTHS_SHORT : MONTHS_LONG)[m - 1]} ${y}`;
 }
+
+/** ISO date ⇄ local Date at midnight, for date-picker components (no timezone drift). */
+export function isoToLocalDate(iso: string): Date {
+  const { y, m, d } = parseISO(iso);
+  return new Date(y, m - 1, d);
+}
+export function localDateToISO(dt: Date): string {
+  return toISO({ y: dt.getFullYear(), m: dt.getMonth() + 1, d: dt.getDate() });
+}

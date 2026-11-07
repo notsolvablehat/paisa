@@ -112,6 +112,8 @@ export const settings = pgTable(
     hardLimit: paise("hard_limit").notNull().default(0),
     /** Added to (Σ income − Σ spend) to get the real account balance. */
     balanceAdjustment: paise("balance_adjustment").notNull().default(0),
+    /** When the user last entered their balance; null = never (with no history, the balance is unknown, not ₹0). */
+    balanceSetAt: timestamp("balance_set_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [

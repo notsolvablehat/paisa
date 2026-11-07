@@ -68,3 +68,24 @@ export function paiseToInput(paise: number): string {
   const r = Math.floor(Math.abs(paise) / 100), f = Math.abs(paise) % 100;
   return (paise < 0 ? "-" : "") + r + (f ? "." + String(f).padStart(2, "0") : "");
 }
+
+const compact = new Intl.NumberFormat("en-IN", { notation: "compact", maximumFractionDigits: 1 });
+/** ₹95.7K, ₹1.1L — for tight spots like chart centres. */
+export function formatCompactINR(paise: number): string {
+  return `${paise < 0 ? "−" : ""}₹${compact.format(Math.abs(paise) / 100)}`;
+}
+/** Whole rupees (rounded), for summary stats. */
+export function formatRoundINR(paise: number): string {
+  return formatINR(Math.round(paise / 100) * 100);
+}
+
+/** Shown instead of an amount when there's nothing behind it (₹0 would claim there is). */
+export const NO_DATA = "—";
+
+/**
+ * For totals of strictly positive amounts (spends, income, contributions, bills):
+ * a zero total means there are no records, so show "—" rather than ₹0.
+ */
+export function formatTotalINR(paise: number, fmt: (p: number) => string = formatINR): string {
+  return paise === 0 ? NO_DATA : fmt(paise);
+}

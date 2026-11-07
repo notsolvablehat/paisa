@@ -19,7 +19,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       }),
   );
   return (
-    <ThemeProvider attribute="data-theme" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
+    <ThemeProvider attribute="data-theme" defaultTheme="light" enableSystem disableTransitionOnChange>
       <ArcProvider link={Link} image={Image}>
         <QueryClientProvider client={queryClient}>
           <ToastStackProvider duration={5000}>

@@ -1,0 +1,1 @@
+ALTER TABLE "settings" ADD COLUMN "balance_set_at" timestamp with time zone;

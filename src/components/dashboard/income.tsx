@@ -5,7 +5,7 @@ import { LineChart } from "@/components/arc/line-chart/line-chart";
 import { MONTHS_LONG, MONTHS_SHORT, dayMonth, parseISO } from "@/lib/dates";
 import { INCOME_SOURCES, SOURCE_META } from "@/lib/constants";
 import { incomeBySourceForMonth } from "@/lib/finance";
-import { formatINR } from "@/lib/money";
+import { formatINR, formatTotalINR } from "@/lib/money";
 import type { DashboardData } from "@/lib/types";
 import { useUI } from "@/stores/ui";
 import { Chip, EmptyState, Panel, SectionHeader } from "./primitives";
@@ -31,7 +31,7 @@ export function IncomeSection({ data }: { data: DashboardData }) {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <Panel className="min-w-0">
           <div className="text-[13px] text-(--p-fg2)">Received in {MONTHS_LONG[parseISO(data.month).m - 1]}</div>
-          <div className="mt-1 font-display text-[clamp(28px,3cqw,36px)] tracking-[-.03em]">{formatINR(total)}</div>
+          <div className="mt-1 font-display text-[clamp(28px,3cqw,36px)] tracking-[-.03em]">{formatTotalINR(total)}</div>
           <div className="mt-3 mb-4 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-(--p-fg2)">
             {legend.map((l) => (
               <span key={l.source} className="flex items-center gap-1.5">
