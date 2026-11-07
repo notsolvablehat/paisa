@@ -41,13 +41,16 @@ npm run db:seed:history -- <email>   # REPLACES that account's spends/income/bil
 ## Layout
 
 ```
-src/app/page.tsx, transactions/, reminders/   pages: <Suspense> + getSessionUser() → client page
+src/app/page.tsx         public landing page (static, SEO copy + JSON-LD; components/landing/)
+src/app/overview/, transactions/, reminders/   app pages: <Suspense> + getSessionUser() → client page (noindex)
+src/app/robots.ts, sitemap.ts, llms.txt/, opengraph-image.tsx, manifest.ts   SEO / sharing; facts in src/lib/site.ts
 src/app/(auth)/sign-in, sign-up               auth-shell.tsx (decor) + auth-forms.tsx
 src/app/api/dashboard   GET ?month=YYYY-MM → DashboardData (one month + history)
 src/app/api/ledger      GET ?from&to → spends + income (Transactions page)
 src/app/api/reminders   GET ?from&to → bill occurrences in range + all unpaid overdue
 src/app/api/auth/[...all]  better-auth handler
-src/proxy.ts            optimistic cookie check; matcher lists every signed-in route — add new pages here
+src/proxy.ts            optimistic cookie check: `/` → /overview when signed in; app routes → /sign-in when not. Matcher lists every signed-in route — add new pages here (and to PRIVATE in robots.ts)
+                        dashboard URL is `APP_HOME` (/overview) from src/lib/site.ts; never hard-code `/` for it
 src/db/schema.ts        tables + constraints;  drizzle/ migrations
 src/server/queries.ts   reads (always filtered by user id)
 src/server/actions.ts   "use server" writes via action(schema, fn) wrapper

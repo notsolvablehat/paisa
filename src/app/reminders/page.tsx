@@ -5,7 +5,7 @@ import { DashboardSkeleton } from "@/components/dashboard/skeleton";
 import { RemindersPage } from "@/components/reminders/reminders-page";
 import { getSessionUser } from "@/server/session";
 
-export const metadata: Metadata = { title: "Reminders · paisa" };
+export const metadata: Metadata = { title: "Reminders", robots: { index: false, follow: false } };
 
 export default function Page() {
   return (

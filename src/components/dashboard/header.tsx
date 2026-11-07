@@ -18,6 +18,7 @@ import { Tooltip } from "@/components/arc/tooltip/tooltip";
 import { signOut } from "@/lib/auth-client";
 import { useResetSession } from "@/hooks/use-dashboard";
 import { avatarDataUri } from "@/lib/avatar";
+import { APP_HOME } from "@/lib/site";
 import { dayMonth } from "@/lib/dates";
 import { formatINR } from "@/lib/money";
 import type { DashboardData } from "@/lib/types";
@@ -30,7 +31,7 @@ export type Page = "overview" | "transactions" | "reminders";
 const NAV: { page: Page; href: string; label: string; icon: string }[] = [
   {
     page: "overview",
-    href: "/",
+    href: APP_HOME,
     label: "Overview",
     icon: "ri-dashboard-horizontal-line",
   },
@@ -166,7 +167,7 @@ export function Header({
         document
           .getElementById("wishlist")
           ?.scrollIntoView({ behavior: "smooth", block: "start" });
-      else router.push("/#wishlist");
+      else router.push(`${APP_HOME}#wishlist`);
     }
   };
 

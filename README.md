@@ -39,6 +39,8 @@ Any script reads `DATABASE_URL` from `.env.local` unless you set it in the shell
    - `BETTER_AUTH_SECRET`: a new one, `openssl rand -base64 32` (don't reuse the local secret)
    - `BETTER_AUTH_URL`: `https://<your-domain>` (sign-in breaks if this doesn't match the URL you open)
    - `DISABLE_SIGNUP`: `true` once your accounts exist (optional)
+   - `NEXT_PUBLIC_SITE_URL`: `https://<your-domain>`, the canonical URL used in sitemap, robots, share links and structured data
+   - `GOOGLE_SITE_VERIFICATION`: the token from Search Console's "HTML tag" method (optional, if you don't verify by DNS)
 5. In Vercel → Settings → Functions, set the region to match Neon's, so every query isn't a round trip across the world.
 6. Later schema changes: `npm run db:generate` locally, commit, then run step 2 against Neon before (or right after) deploying.
 
@@ -69,7 +71,8 @@ src/stores/ui.ts        Zustand: viewed month, chart range, modal state
 
 ## Pages
 
-- `/` Overview — safe-to-spend, spending, recent spends, what's due, income, goals, budgets. Month picker in the title row.
+- `/` Landing page (public, indexed). Signed-in visitors are sent to `/overview`.
+- `/overview` Overview — safe-to-spend, spending, recent spends, what's due, income, goals, budgets. Month picker in the title row.
 - `/transactions` — every spend and income in a date range: search, filter chips (type, category, source, amount), sortable table, totals and a spend-by-category donut.
 - `/reminders` — every bill occurrence in a range (overdue always included): tick paid, edit, stop; fixed costs per month.
 

@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
  * threaded through; steps whose target isn't rendered (e.g. the desktop Add
  * button on mobile) are skipped.
  *
- * Started with `startProductTour()` on the overview, or `queueProductTour()`
+ * Started with `startProductTour()` on the overview (/overview), or `queueProductTour()`
  * before navigating there. (Not a URL param: changing search params remounts
  * the page segment, which unmounted the tour mid-way.)
  */

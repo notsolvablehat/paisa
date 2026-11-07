@@ -1,11 +1,21 @@
 import { AuthCard, AuthShell, Float } from "../auth-shell";
 import { SignUpForm } from "../auth-forms";
 
-export const metadata = { title: "Create your account · paisa" };
+export const metadata = {
+  title: "Create your free account",
+  description:
+    "Create a free paisa account: set a monthly budget and see what is safe to spend today.",
+  alternates: { canonical: "/sign-up" },
+};
 
 const CHIPS = [
   { name: "Food", icon: "ri-restaurant-2-line", color: "#DE7139" },
-  { name: "Groceries", icon: "ri-shopping-basket-2-line", color: "#28A984", on: true },
+  {
+    name: "Groceries",
+    icon: "ri-shopping-basket-2-line",
+    color: "#28A984",
+    on: true,
+  },
   { name: "Transport", icon: "ri-bus-2-line", color: "#2B95DE" },
   { name: "Entertainment", icon: "ri-film-line", color: "#9E435A" },
 ];
@@ -16,11 +26,16 @@ export default function SignUpPage() {
       floats={
         <>
           <Float className="top-[24%] left-[6.5%] w-[366px]">
-            <div className="text-[11px] font-medium tracking-[.12em] text-(--p-fg3) uppercase">Wishlist</div>
-            <div className="mt-2 font-display text-[22px] tracking-[-.02em]">MacBook Air M4</div>
+            <div className="text-[11px] font-medium tracking-[.12em] text-(--p-fg3) uppercase">
+              Wishlist
+            </div>
+            <div className="mt-2 font-display text-[22px] tracking-[-.02em]">
+              MacBook Air M4
+            </div>
             <div className="mt-3 flex justify-between text-[13px]">
               <span>
-                <span className="font-medium">₹38,000</span> <span className="text-(--p-fg3)">of ₹99,900</span>
+                <span className="font-medium">₹38,000</span>{" "}
+                <span className="text-(--p-fg3)">of ₹99,900</span>
               </span>
               <span className="text-(--p-fg3)">38%</span>
             </div>
@@ -35,8 +50,12 @@ export default function SignUpPage() {
 
           <Float className="top-[31%] right-[7%] w-[304px]">
             <div className="text-[13px] text-(--p-fg2)">Free to spend</div>
-            <div className="mt-1 font-display text-[34px] tracking-[-.03em] text-(--p-pos)">₹15,900</div>
-            <div className="mt-1 text-xs text-(--p-fg3)">₹62,400 balance − ₹46,500 saved</div>
+            <div className="mt-1 font-display text-[34px] tracking-[-.03em] text-(--p-pos)">
+              ₹15,900
+            </div>
+            <div className="mt-1 text-xs text-(--p-fg3)">
+              ₹62,400 balance − ₹46,500 saved
+            </div>
           </Float>
 
           <Float className="bottom-[15%] left-[10.5%] flex w-[316px] flex-wrap gap-2 p-4">
@@ -44,7 +63,9 @@ export default function SignUpPage() {
               <span
                 key={c.name}
                 className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[13px] ${
-                  c.on ? "border-(--p-ink) bg-(--p-surface2)" : "border-(--p-line)"
+                  c.on
+                    ? "border-(--p-ink) bg-(--p-surface2)"
+                    : "border-(--p-line)"
                 }`}
               >
                 <i className={c.icon} style={{ color: c.color }} />
@@ -64,7 +85,10 @@ export default function SignUpPage() {
         </>
       }
     >
-      <AuthCard title="Create your account" subtitle="Set a monthly budget and see your daily number in under a minute.">
+      <AuthCard
+        title="Create your account"
+        subtitle="Set a monthly budget and see your daily number in under a minute."
+      >
         <SignUpForm />
       </AuthCard>
     </AuthShell>

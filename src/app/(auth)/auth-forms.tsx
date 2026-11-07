@@ -10,6 +10,7 @@ import {
   PasswordStrength,
 } from "@/components/arc/password-strength/password-strength";
 import { signIn, signUp } from "@/lib/auth-client";
+import { APP_HOME } from "@/lib/site";
 import { useResetSession } from "@/hooks/use-dashboard";
 import { queueWelcome } from "@/components/dashboard/welcome-modals";
 
@@ -70,7 +71,7 @@ export function SignInForm() {
     if (res.error)
       return setError(res.error.message ?? "Could not sign you in");
     resetSession();
-    router.replace("/");
+    router.replace(APP_HOME);
     router.refresh();
   }
 
@@ -134,7 +135,7 @@ export function SignUpForm() {
     resetSession();
     // First visit: the overview opens the welcome cards.
     queueWelcome();
-    router.replace("/");
+    router.replace(APP_HOME);
     router.refresh();
   }
 

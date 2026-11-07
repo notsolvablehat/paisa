@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "paisa",
     short_name: "paisa",
     description: "Know what's safe to spend today.",
-    start_url: "/",
+    start_url: "/overview",
     display: "standalone",
     background_color: "#f6f6f5",
     theme_color: "#111210",

@@ -1,7 +1,11 @@
 import { AuthCard, AuthShell, Float } from "../auth-shell";
 import { SignInForm } from "../auth-forms";
 
-export const metadata = { title: "Log in · paisa" };
+export const metadata = {
+  title: "Log in",
+  description: "Log in to paisa to see what you can spend today.",
+  alternates: { canonical: "/sign-in" },
+};
 
 const BARS = [92, 10, 18, 62, 8, 34, 46, 12, 22, 30, 4];
 
@@ -11,7 +15,9 @@ export default function SignInPage() {
       floats={
         <>
           <Float className="top-[24%] left-[7.5%] w-[340px]">
-            <div className="text-[13px] text-(--p-fg2)">Safe to spend today</div>
+            <div className="text-[13px] text-(--p-fg2)">
+              Safe to spend today
+            </div>
             <div className="mt-1 flex items-start gap-1 font-display text-[64px] leading-[.9] font-light tracking-[-.05em]">
               <span className="mt-1 text-[22px] text-(--p-fg3)">₹</span>509
             </div>
@@ -19,7 +25,9 @@ export default function SignInPage() {
               <div className="absolute inset-y-0 left-0 w-[47%] rounded-full bg-(--p-ink)" />
               <div className="absolute -inset-y-1 left-[33%] w-0.5 rounded-full bg-(--p-accent)" />
             </div>
-            <div className="mt-2.5 text-xs text-(--p-fg3)">47% of budget used · 33% of month gone</div>
+            <div className="mt-2.5 text-xs text-(--p-fg3)">
+              47% of budget used · 33% of month gone
+            </div>
           </Float>
 
           <Float className="top-[32%] right-[8%] w-[310px] p-4">
@@ -34,7 +42,12 @@ export default function SignInPage() {
                   className="flex-1 rounded-t-[3px]"
                   style={{
                     height: `${h}%`,
-                    background: i === 9 ? "var(--p-ink)" : h > 40 && i !== 0 ? "var(--p-barOver)" : "var(--p-bar)",
+                    background:
+                      i === 9
+                        ? "var(--p-ink)"
+                        : h > 40 && i !== 0
+                          ? "var(--p-barOver)"
+                          : "var(--p-bar)",
                   }}
                 />
               ))}
@@ -54,12 +67,17 @@ export default function SignInPage() {
 
           <Float className="right-[8%] bottom-[18%] w-[284px] px-5 py-4">
             <div className="text-[13px] text-(--p-fg2)">Free to spend</div>
-            <div className="mt-1 font-display text-[30px] tracking-[-.03em] text-(--p-pos)">₹15,900</div>
+            <div className="mt-1 font-display text-[30px] tracking-[-.03em] text-(--p-pos)">
+              ₹15,900
+            </div>
           </Float>
         </>
       }
     >
-      <AuthCard title="Welcome back" subtitle="Log in to see what you can spend today.">
+      <AuthCard
+        title="Welcome back"
+        subtitle="Log in to see what you can spend today."
+      >
         <SignInForm />
       </AuthCard>
     </AuthShell>

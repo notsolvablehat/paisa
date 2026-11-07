@@ -5,7 +5,7 @@ import { DashboardSkeleton } from "@/components/dashboard/skeleton";
 import { TransactionsPage } from "@/components/transactions/transactions-page";
 import { getSessionUser } from "@/server/session";
 
-export const metadata: Metadata = { title: "Transactions · paisa" };
+export const metadata: Metadata = { title: "Transactions", robots: { index: false, follow: false } };
 
 export default function Page() {
   return (
