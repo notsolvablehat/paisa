@@ -16,7 +16,7 @@ import {
   createCategory,
   updateSpend,
 } from "@/server/actions";
-import { useAction, useToast } from "@/hooks/use-dashboard";
+import { useAction } from "@/hooks/use-dashboard";
 import {
   CUSTOM_COLORS,
   CUSTOM_ICONS,
@@ -85,7 +85,6 @@ export function QuickAdd({ data }: { data: DashboardData }) {
 function QuickAddForm({ data }: { data: DashboardData }) {
   const { mode: initialMode, prefill } = useUI((s) => s.modal);
   const closeModal = useUI((s) => s.closeModal);
-  const toast = useToast();
   const editing = Boolean(prefill.editTxId);
 
   const openGoals = data.goals.filter(
@@ -141,8 +140,20 @@ function QuickAddForm({ data }: { data: DashboardData }) {
 
   const spend = useAction(addSpend, { success: "Spend added" });
   const edit = useAction(updateSpend, { success: "Changes saved" });
-  const inc = useAction(addIncome);
-  const contrib = useAction(contributeToGoal);
+  const inc = useAction(addIncome, {
+    success: (_, i) =>
+      !i.loan
+        ? "Income added"
+        : i.loan.count === 1
+          ? "Loan added with a repayment reminder"
+          : `Loan added with ${i.loan.count} repayment reminders`,
+  });
+  const contrib = useAction(contributeToGoal, {
+    success: (r) =>
+      r.capped
+        ? `Only ${formatINR(r.applied)} was needed — goal fully funded`
+        : "Assigned to goal",
+  });
   const bill = useAction(addBill, { success: "Reminder added" });
   const newCat = useAction(createCategory, { success: "Category created" });
   const pending =
@@ -198,26 +209,14 @@ function QuickAddForm({ data }: { data: DashboardData }) {
             }
           : undefined,
       });
-      if (!isLoan) toast.success("Income added");
-      else
-        toast.success(
-          nInstalments === 1
-            ? "Loan added with a repayment reminder"
-            : `Loan added with ${nInstalments} repayment reminders`,
-        );
     } else if (mode === "Goal contribution") {
       if (!goalId) return setError("Create a goal first");
-      const r = await contrib.mutateAsync({
+      await contrib.mutateAsync({
         goalId,
         amount,
         note: n,
         date: effectiveDate,
       });
-      toast.success(
-        r.capped
-          ? `Only ${formatINR(r.applied)} was needed — goal fully funded`
-          : "Assigned to goal",
-      );
     } else {
       const name = remName.trim() || n;
       if (!name) return setError("What is the reminder for?");

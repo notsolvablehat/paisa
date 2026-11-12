@@ -80,6 +80,7 @@ scripts/seed-demo.ts, seed-history.ts
   - Unticking deletes the spend and the auto-created next occurrence if it's still unpaid.
   - `updateBill` edits only unpaid occurrences; `deleteBill` removes this + later **unpaid** occurrences (paid history stays — deleting a paid bill would cascade-delete its spend).
   - Dashboard "Coming up" query returns only the earliest unpaid occurrence per series (+ paid ones in the viewed month); safe-to-spend uses that list.
+- **Undo (every write, 5 s):** an action registers its inverse with `ctx.undo(step…)` (`del` what it created, `upd` back to the old values read first, `ins` the exact rows it removed, `settings` for budgets/balance). The wrapper returns a signed, user-bound token (`src/server/undo.ts`, HMAC with `BETTER_AUTH_SECRET`, expires 5 s + network slack); `undo({ token })` replays the steps in one transaction. `useAction` shows the Undo toast automatically — pass `success` (string or `(data, input) => …`) instead of toasting yourself. A new write action must register its undo.
 - Safe-to-spend = floor((budget left − bills still due this month − goal top-ups due) / days left, to ₹100). Formulas live in `finance.ts` and are unit-tested — change them there and extend the tests.
 
 ## Security rules

@@ -1,22 +1,17 @@
 "use client";
 
-import { deleteSpend, restoreSpend } from "@/server/actions";
-import { useAction, useToast } from "./use-dashboard";
+import { deleteSpend } from "@/server/actions";
+import { useAction } from "./use-dashboard";
 
-/** Delete a spend with an Undo toast (restores the exact row, bill link included). */
+/** Delete a spend; the toast's Undo (5 s) restores the exact row, bill link included. */
 export function useDeleteSpend() {
-  const toast = useToast();
-  const del = useAction(deleteSpend);
-  const restore = useAction(restoreSpend, { success: "Restored" });
-  return (id: string) =>
-    del.mutate(
-      { id },
-      {
-        onSuccess: (row) =>
-          toast.info("Spend deleted", {
-            description: row.billId ? "The linked bill is marked unpaid again." : undefined,
-            action: { label: "Undo", onClick: () => restore.mutate(row) },
-          }),
-      },
-    );
+  const del = useAction(deleteSpend, {
+    success: (row) => ({
+      title: "Spend deleted",
+      description: row.billId
+        ? "The linked bill is marked unpaid again."
+        : undefined,
+    }),
+  });
+  return (id: string) => del.mutate({ id });
 }

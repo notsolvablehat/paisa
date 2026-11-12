@@ -8,7 +8,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
-import type { ActionResult } from "@/server/actions";
+import { undo, type ActionResult } from "@/server/actions";
 import type { DashboardData, LedgerData, RemindersData } from "@/lib/types";
 
 export class HttpError extends Error {
@@ -51,6 +51,7 @@ export function useToast() {
       opts: {
         description?: string;
         action?: { label: string; onClick: () => void };
+        duration?: number;
       } = {},
     ) =>
       toast({
@@ -58,28 +59,63 @@ export function useToast() {
         title,
         description: opts.description,
         action: opts.action,
+        duration: opts.duration,
       }),
   };
 }
 
+/** How long the Undo button is offered; the server refuses undo tokens after the same window. */
+export const UNDO_MS = 5_000;
+
+type Message = string | { title: string; description?: string };
+
 /**
- * Runs a server action, shows its error as a toast, and refreshes the
- * dashboard on success. The server is the source of truth for every number.
+ * Runs a server action, shows its error as a toast, and refreshes the dashboard on success.
+ * The server is the source of truth for every number.
+ *
+ * Every write returns an undo token: the success toast then carries an Undo button for 5 s. After
+ * that the token expires on the server and the change is permanent. `success` names what happened
+ * (a string, or built from the result and input).
  */
 export function useAction<I, O>(
   fn: (input: I) => Promise<ActionResult<O>>,
-  opts: { success?: string } = {},
+  opts: { success?: Message | ((data: O, input: I) => Message) } = {},
 ) {
   const qc = useQueryClient();
   const toast = useToast();
+
+  const runUndo = async (token: string, deadline: number) => {
+    // The toast pauses while hovered; the offer itself doesn't.
+    if (Date.now() > deadline)
+      return toast.error("Too late to undo", "That change is saved.");
+    const res = await undo({ token });
+    await qc.invalidateQueries({ queryKey: ["dashboard"] });
+    if (res.ok) toast.success("Undone");
+    else toast.error(res.error);
+  };
+
   return useMutation({
     mutationFn: async (input: I) => {
       const res = await fn(input);
       if (!res.ok) throw new Error(res.error);
+      const raw =
+        typeof opts.success === "function"
+          ? opts.success(res.data, input)
+          : opts.success;
+      const msg = typeof raw === "string" ? { title: raw } : raw;
+      if (res.undo) {
+        const token = res.undo;
+        const deadline = Date.now() + UNDO_MS;
+        toast.info(msg?.title ?? "Saved", {
+          description: msg?.description,
+          duration: UNDO_MS,
+          action: {
+            label: "Undo",
+            onClick: () => void runUndo(token, deadline),
+          },
+        });
+      } else if (msg) toast.success(msg.title, msg.description);
       return res.data;
-    },
-    onSuccess: () => {
-      if (opts.success) toast.success(opts.success);
     },
     onError: (err) =>
       toast.error(err instanceof Error ? err.message : "Something went wrong"),

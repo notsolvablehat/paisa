@@ -18,7 +18,9 @@ import {
 export function Wishlist({ data }: { data: DashboardData }) {
   const openModal = useUI((s) => s.openModal);
   const setGoalDialogOpen = useUI((s) => s.setGoalDialogOpen);
-  const pause = useAction(setGoalPaused);
+  const pause = useAction(setGoalPaused, {
+    success: (_, i) => (i.paused ? "Goal paused" : "Goal resumed"),
+  });
   const earmarked = data.goals.reduce((a, g) => a + g.assigned, 0);
   const n = data.goals.length;
   const nPaused = data.goals.filter((g) => g.paused).length;

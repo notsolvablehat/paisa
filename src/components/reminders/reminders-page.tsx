@@ -31,7 +31,7 @@ import {
   Spinner,
   Stat,
 } from "@/components/dashboard/primitives";
-import { useAction, useReminders, useToast } from "@/hooks/use-dashboard";
+import { useAction, useReminders } from "@/hooks/use-dashboard";
 import { RECURRENCES } from "@/lib/constants";
 import {
   addDays,
@@ -133,9 +133,18 @@ function RemindersView({
   const router = useRouter();
   const pathname = usePathname();
   const openModal = useUI((s) => s.openModal);
-  const toast = useToast();
-  const toggle = useAction(setBillPaid);
-  const remove = useAction(deleteBill);
+  const toggle = useAction(setBillPaid, {
+    success: (_, i) => (i.paid ? "Marked paid" : "Marked unpaid"),
+  });
+  const remove = useAction(deleteBill, {
+    success: (n) => ({
+      title: n > 1 ? "Reminder stopped" : "Reminder deleted",
+      description:
+        n > 1
+          ? `Removed ${n} upcoming occurrences. Paid ones stay in your history.`
+          : "Paid ones stay in your history.",
+    }),
+  });
   const [editing, setEditing] = useState<ReminderRow | null>(null);
 
   const today = data?.today ?? todayISO();
@@ -298,19 +307,7 @@ function RemindersView({
     };
   }, [filtered, all]);
 
-  const onDelete = (r: ReminderRow) =>
-    remove.mutate(
-      { billId: r.id },
-      {
-        onSuccess: (n) =>
-          toast.success(
-            r.recurrence === "Once" ? "Reminder deleted" : "Reminder stopped",
-            n > 1
-              ? `Removed ${n} upcoming occurrences. Paid ones stay in your history.`
-              : "Paid ones stay in your history.",
-          ),
-      },
-    );
+  const onDelete = (r: ReminderRow) => remove.mutate({ billId: r.id });
 
   const columns: DataColumn<Row>[] = [
     {

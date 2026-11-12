@@ -26,7 +26,9 @@ export function Bills({ data }: { data: DashboardData }) {
   const open = all.filter((b) => !b.paid);
   const rows = open.slice(0, LIMIT);
   const paidCount = all.length - open.length;
-  const toggle = useAction(setBillPaid);
+  const toggle = useAction(setBillPaid, {
+    success: (_, i) => (i.paid ? "Marked paid" : "Marked unpaid"),
+  });
   const openModal = useUI((s) => s.openModal);
 
   return (
