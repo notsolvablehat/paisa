@@ -5,7 +5,7 @@ import { setBalance, updateBudget } from "@/server/actions";
 import { useAction } from "@/hooks/use-dashboard";
 import { longDay, monthLabel, MONTHS_LONG, parseISO } from "@/lib/dates";
 import { budgetNotes, categoryRows, type Summary } from "@/lib/finance";
-import { formatINR, formatTotalINR, NO_DATA, formatNumber } from "@/lib/money";
+import { formatINR, NO_DATA, formatNumber } from "@/lib/money";
 import type { DashboardData } from "@/lib/types";
 import { AmountEdit, Panel, TapOrClick } from "./primitives";
 
@@ -99,9 +99,20 @@ export function Hero({ data, s }: { data: DashboardData; s: Summary }) {
                 <>
                   <B>{formatINR(s.budgetLeft)}</B> left in this month&apos;s
                   budget, minus <B>{formatINR(s.billsDue)}</B> in bills still
-                  due and <B>{formatINR(s.goalTop)}</B> set aside for goals,
-                  divided by the <B>{s.daysLeft}</B>{" "}
-                  {s.daysLeft === 1 ? "day" : "days"} left.
+                  due and <B>{formatINR(s.goalTop)}</B> set aside for goals
+                  {s.short > 0 ? (
+                    <>
+                      {" "}
+                      leaves you <B>{formatINR(s.short)}</B> short, so nothing
+                      is safe to spend for the <B>{s.daysLeft}</B>{" "}
+                      {s.daysLeft === 1 ? "day" : "days"} left.
+                    </>
+                  ) : (
+                    <>
+                      , divided by the <B>{s.daysLeft}</B>{" "}
+                      {s.daysLeft === 1 ? "day" : "days"} left.
+                    </>
+                  )}
                 </>
               ) : (
                 <>
@@ -186,7 +197,7 @@ export function Hero({ data, s }: { data: DashboardData; s: Summary }) {
           />
         </Stat>
         <Stat label="Saved for goals" sub="Virtual, not moved">
-          {formatTotalINR(s.earmarked)}
+          {data.goals.length > 0 ? formatINR(s.earmarked) : NO_DATA}
         </Stat>
         <Stat
           label="Free to spend"

@@ -26,7 +26,13 @@ import {
   type IncomeSource,
   type Recurrence,
 } from "@/lib/constants";
-import { addDays, parseISO, toISO } from "@/lib/dates";
+import {
+  addDays,
+  addMonthsToDate,
+  dayMonth,
+  parseISO,
+  toISO,
+} from "@/lib/dates";
 import { formatINR, MAX_PAISE } from "@/lib/money";
 import type { DashboardData } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -64,7 +70,9 @@ export function QuickAdd({ data }: { data: DashboardData }) {
       <DialogContent
         title={editing ? "Edit spend" : "Quick add"}
         description={editing ? undefined : "Ctrl K opens this from anywhere."}
-        className="w-[min(calc(100vw-32px),560px)]! [@media(min-height:720px)]:overflow-visible!"
+        // Overflow stays visible on tall screens so dropdown lists aren't clipped, except while the
+        // (long) loan form is showing: then the dialog must scroll or its buttons fall off-screen.
+        className="w-[min(calc(100vw-32px),560px)]! [@media(min-height:720px)]:not-has-[[data-loan]]:overflow-visible!"
         // The form focuses the amount itself; skip Radix's "first focusable" default.
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
@@ -80,7 +88,9 @@ function QuickAddForm({ data }: { data: DashboardData }) {
   const toast = useToast();
   const editing = Boolean(prefill.editTxId);
 
-  const openGoals = data.goals.filter((g) => g.assigned < g.target);
+  const openGoals = data.goals.filter(
+    (g) => !g.paused && g.assigned < g.target,
+  );
   const defaultCat =
     prefill.categoryId ??
     data.categories.find((c) => c.name === "Food")?.id ??
@@ -95,6 +105,11 @@ function QuickAddForm({ data }: { data: DashboardData }) {
   const [goalId, setGoalId] = useState(
     prefill.goalId ?? openGoals[0]?.id ?? "",
   );
+  // Loan repayment plan (Income → Loan). `repay` null = same as the amount borrowed.
+  const [lender, setLender] = useState("");
+  const [repay, setRepay] = useState<number | null>(null);
+  const [count, setCount] = useState("1");
+  const [firstDue, setFirstDue] = useState<string | null>(null);
   const [remName, setRemName] = useState("");
   const [remRec, setRemRec] = useState<Recurrence>("Monthly");
   const [custom, setCustom] = useState(false);
@@ -117,10 +132,16 @@ function QuickAddForm({ data }: { data: DashboardData }) {
 
   const effectiveDate =
     date ?? (mode === "Reminder" ? addDays(data.today, 7) : data.today);
+  const isLoan = mode === "Income" && source === "Loan";
+  const nInstalments = Number(count);
+  const instalment =
+    repay ??
+    (amount && nInstalments > 0 ? Math.ceil(amount / nInstalments) : null);
+  const loanFirstDue = firstDue ?? addMonthsToDate(effectiveDate, 1);
 
   const spend = useAction(addSpend, { success: "Spend added" });
   const edit = useAction(updateSpend, { success: "Changes saved" });
-  const inc = useAction(addIncome, { success: "Income added" });
+  const inc = useAction(addIncome);
   const contrib = useAction(contributeToGoal);
   const bill = useAction(addBill, { success: "Reminder added" });
   const newCat = useAction(createCategory, { success: "Category created" });
@@ -152,7 +173,38 @@ function QuickAddForm({ data }: { data: DashboardData }) {
       if (editing) await edit.mutateAsync({ ...input, id: prefill.editTxId! });
       else await spend.mutateAsync(input);
     } else if (mode === "Income") {
-      await inc.mutateAsync({ amount, source, note: n, date: effectiveDate });
+      if (isLoan) {
+        if (
+          !Number.isInteger(nInstalments) ||
+          nInstalments < 1 ||
+          nInstalments > 60
+        )
+          return setError("Instalments must be between 1 and 60");
+        if (!instalment) return setError("Enter the repayment amount");
+        if (loanFirstDue < effectiveDate)
+          return setError("The first repayment can't be before the loan");
+      }
+      await inc.mutateAsync({
+        amount,
+        source,
+        note: n,
+        date: effectiveDate,
+        loan: isLoan
+          ? {
+              instalment: instalment!,
+              count: nInstalments,
+              firstDue: loanFirstDue,
+              name: lender.trim(),
+            }
+          : undefined,
+      });
+      if (!isLoan) toast.success("Income added");
+      else
+        toast.success(
+          nInstalments === 1
+            ? "Loan added with a repayment reminder"
+            : `Loan added with ${nInstalments} repayment reminders`,
+        );
     } else if (mode === "Goal contribution") {
       if (!goalId) return setError("Create a goal first");
       const r = await contrib.mutateAsync({
@@ -348,6 +400,65 @@ function QuickAddForm({ data }: { data: DashboardData }) {
           onValueChange={(v) => setSource(v as IncomeSource)}
           searchable={false}
         />
+      )}
+
+      {isLoan && (
+        <fieldset
+          data-loan
+          className="flex flex-col gap-3 rounded-[var(--radius-control)] border border-(--p-line) bg-(--p-surface2) p-3.5"
+        >
+          <legend className="sr-only">Repayment</legend>
+          <p className="text-[13px] text-(--p-fg2)">
+            Repayment — we&apos;ll add a reminder for each instalment.
+          </p>
+          <Input
+            label="Lender"
+            placeholder="e.g. Bank, app or friend"
+            value={lender}
+            maxLength={60}
+            onChange={(e) => setLender(e.target.value)}
+          />
+          <MoneyInput
+            label="Repay per instalment"
+            currency="INR"
+            currencies={["INR"]}
+            locale="en-IN"
+            quickAdd={[]}
+            value={instalment}
+            onValueChange={setRepay}
+            max={MAX_PAISE}
+          />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Input
+              label="Instalments (monthly)"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={60}
+              value={count}
+              onChange={(e) => setCount(e.target.value)}
+            />
+            <DatePicker
+              type="button"
+              label="First repayment due"
+              value={isoToDate(loanFirstDue)}
+              onChange={(d) => d && setFirstDue(dateToIso(d))}
+              minDate={isoToDate(effectiveDate)}
+              locale="en-IN"
+              format={{ day: "numeric", month: "short", year: "numeric" }}
+            />
+          </div>
+          {instalment && nInstalments >= 1 && nInstalments <= 60 && (
+            <p className="text-xs text-(--p-fg3)">
+              {nInstalments === 1
+                ? `${formatINR(instalment)} due ${dayMonth(loanFirstDue)}.`
+                : `${nInstalments} × ${formatINR(instalment)}, monthly from ${dayMonth(loanFirstDue)} — ${formatINR(instalment * nInstalments)} in all.`}
+              {repay != null && amount && instalment * nInstalments > amount
+                ? ` That's ${formatINR(instalment * nInstalments - amount)} more than you borrowed.`
+                : ""}
+            </p>
+          )}
+        </fieldset>
       )}
 
       {mode === "Goal contribution" &&

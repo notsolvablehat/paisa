@@ -78,6 +78,7 @@ export async function getDashboard(userId: string, month: string, today: string)
         name: goal.name,
         target: goal.target,
         monthly: goal.monthly,
+        paused: sql<boolean>`${goal.pausedAt} is not null`.mapWith(Boolean),
         assigned: sumPaise(goalContribution.amount),
         contributedInMonth: sql<number>`coalesce(sum(${goalContribution.amount}) filter (where ${goalContribution.contributedOn} between ${start} and ${end}), 0)::bigint`.mapWith(
           Number,

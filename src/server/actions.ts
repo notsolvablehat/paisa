@@ -129,9 +129,39 @@ export async function restoreSpend(input: z.input<typeof restoreInput>) {
 
 /* ───────────────────────────── income ───────────────────────────── */
 
-const incomeInput = z.object({ amount: paise, source: z.enum(INCOME_SOURCES), note, date: isoDate });
+/** Repayment plan for a loan: `count` monthly instalments of `instalment`, the first due on `firstDue`. */
+const loanInput = z.object({
+  instalment: paise,
+  count: z.number().int().min(1, "At least one instalment").max(60, "At most 60 instalments"),
+  firstDue: isoDate,
+  name: z.string().trim().max(80).default(""),
+});
+const incomeInput = z
+  .object({ amount: paise, source: z.enum(INCOME_SOURCES), note, date: isoDate, loan: loanInput.optional() })
+  .refine((d) => (d.source === "Loan") === Boolean(d.loan), { message: "Add the repayment details for this loan" })
+  .refine((d) => !d.loan || d.loan.firstDue >= d.date, { message: "The first repayment can't be before the loan" });
 const _addIncome = action(incomeInput, async (userId, d) => {
-  await db.insert(income).values({ userId, source: d.source, amount: d.amount, note: d.note, receivedOn: d.date });
+  await db.transaction(async (tx) => {
+    await tx.insert(income).values({ userId, source: d.source, amount: d.amount, note: d.note, receivedOn: d.date });
+    if (!d.loan) return;
+    // One reminder series, one "Once" occurrence per instalment: they're paid in order like any series,
+    // and nothing repeats after the last one.
+    const { instalment, count, firstDue } = d.loan;
+    const base = (d.loan.name || d.note || "Loan").slice(0, 60);
+    const seriesId = crypto.randomUUID();
+    const categoryId = await billsCategoryId(userId, tx);
+    await tx.insert(bill).values(
+      Array.from({ length: count }, (_, i) => ({
+        userId,
+        seriesId,
+        name: count === 1 ? `${base} repayment` : `${base} repayment ${i + 1}/${count}`,
+        amount: instalment,
+        dueOn: addMonthsToDate(firstDue, i),
+        recurrence: "Once" as const,
+        categoryId,
+      })),
+    );
+  });
 });
 export async function addIncome(input: z.input<typeof incomeInput>) {
   return _addIncome(input);
@@ -159,12 +189,13 @@ const _contributeToGoal = action(contributeInput, async (userId, d) => {
     // Lock the goal so two concurrent contributions can't overshoot the target.
     const g = assertFound(
       await tx
-        .select({ target: goal.target })
+        .select({ target: goal.target, pausedAt: goal.pausedAt })
         .from(goal)
         .where(and(eq(goal.id, d.goalId), eq(goal.userId, userId)))
         .for("update"),
       "goal",
     );
+    if (g.pausedAt) throw new UserError("This goal is paused. Resume it to assign money.");
     const [{ assigned }] = await tx
       .select({ assigned: sql<number>`coalesce(sum(${goalContribution.amount}), 0)::bigint`.mapWith(Number) })
       .from(goalContribution)
@@ -180,6 +211,22 @@ export async function contributeToGoal(input: z.input<typeof contributeInput>) {
   return _contributeToGoal(input);
 }
 
+/** Goals can't be deleted (a goal is a goal); pausing takes one out of safe-to-spend until resumed. */
+const pauseInput = z.object({ goalId: id, paused: z.boolean() });
+const _setGoalPaused = action(pauseInput, async (userId, d) => {
+  assertFound(
+    await db
+      .update(goal)
+      .set({ pausedAt: d.paused ? sql`now()` : null })
+      .where(and(eq(goal.id, d.goalId), eq(goal.userId, userId)))
+      .returning({ id: goal.id }),
+    "goal",
+  );
+});
+export async function setGoalPaused(input: z.input<typeof pauseInput>) {
+  return _setGoalPaused(input);
+}
+
 /* ───────────────────────────── bills ───────────────────────────── */
 
 const billInput = z.object({
@@ -190,15 +237,7 @@ const billInput = z.object({
   categoryId: id.optional(),
 });
 const _addBill = action(billInput, async (userId, d) => {
-  let categoryId = d.categoryId;
-  if (!categoryId) {
-    const [c] = await db
-      .select({ id: category.id })
-      .from(category)
-      .where(and(eq(category.userId, userId), sql`lower(${category.name}) = 'bills'`));
-    if (!c) throw new UserError("Create a “Bills” category first.");
-    categoryId = c.id;
-  }
+  const categoryId = d.categoryId ?? (await billsCategoryId(userId));
   await db.insert(bill).values({
     userId,
     name: d.name,
@@ -210,6 +249,16 @@ const _addBill = action(billInput, async (userId, d) => {
 });
 export async function addBill(input: z.input<typeof billInput>) {
   return _addBill(input);
+}
+
+/** Reminders made without a category go under the user's "Bills" category. */
+async function billsCategoryId(userId: string, q: Pick<typeof db, "select"> = db): Promise<string> {
+  const [c] = await q
+    .select({ id: category.id })
+    .from(category)
+    .where(and(eq(category.userId, userId), sql`lower(${category.name}) = 'bills'`));
+  if (!c) throw new UserError("Create a “Bills” category first.");
+  return c.id;
 }
 
 const _setBillPaid = action(z.object({ billId: id, paid: z.boolean() }), async (userId, d) => {

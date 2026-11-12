@@ -120,6 +120,7 @@ function SpendChart({ data, s }: { data: DashboardData; s: Summary }) {
               value: R(b.value),
             }))}
             averageLabel={range === "day" ? "Daily average" : "Weekly average"}
+            average={c.average === undefined ? undefined : R(c.average)}
             valueLabel="Spent"
             categoryLabel={range === "day" ? "Day" : "Week"}
             height={220}
@@ -182,7 +183,9 @@ function CategoryList({ data }: { data: DashboardData }) {
   const save = useAction(updateCategoryBudget, { success: "Budget updated" });
 
   return (
-    <Panel className="min-w-0">
+    // Side by side (lg+), the chart card sets the row height and this list scrolls inside it,
+    // scrollbar hidden, a fade at the bottom hinting there's more. Stacked, it's just a list.
+    <Panel className="flex min-w-0 flex-col">
       <div className="mb-2 flex items-baseline justify-between">
         <h3 className="text-sm font-medium">By category</h3>
         <span className="text-xs text-(--p-fg3)">
@@ -194,61 +197,71 @@ function CategoryList({ data }: { data: DashboardData }) {
           Spends you add will be grouped here.
         </EmptyState>
       )}
-      <div className="flex flex-col">
-        {rows.map((r) => (
-          <div
-            key={r.id}
-            className={cn(
-              "-mx-3 grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 rounded-[14px] px-3 py-2.5",
-              r.over && "bg-(--p-overTint)",
-            )}
-          >
-            <span
-              className="grid size-7 place-items-center rounded-full"
-              style={{
-                background: `color-mix(in oklab, ${r.color} 14%, transparent)`,
-              }}
-            >
-              <i
-                className={cn(r.icon, "text-[15px]")}
-                style={{ color: r.color }}
-                aria-hidden
-              />
-            </span>
-            {/* Wraps the "over" note under the name on narrow screens instead of squeezing the name away. */}
-            <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-sm">
-              <span className="max-w-full truncate">{r.name}</span>
-              {r.over && (
-                <span className="shrink-0 text-xs whitespace-nowrap text-(--p-warn)">
-                  {formatINR(r.spent - r.budget)} over
-                </span>
+      <div className="lg:relative lg:min-h-0 lg:flex-1">
+        <div className="flex flex-col lg:absolute lg:-inset-x-3 lg:inset-y-0 lg:overflow-y-auto lg:px-3 lg:pb-6 lg:[mask-image:linear-gradient(to_bottom,black_calc(100%-28px),transparent)] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
+          {rows.map((r) => (
+            <div
+              key={r.id}
+              className={cn(
+                "-mx-3 grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 rounded-[14px] px-3 py-2.5",
+                r.over && "bg-(--p-overTint)",
               )}
-            </span>
-            <span className="flex items-center gap-1 whitespace-nowrap">
-              <span className="font-medium">{formatINR(r.spent)}</span>
-              <span className="text-xs text-(--p-fg3)">of</span>
-              <span className="text-xs text-(--p-fg3)">
-                <AmountEdit
-                  value={r.budget}
-                  label={`${r.name} budget`}
-                  emptyText="Set budget"
-                  onSave={(amount) =>
-                    save.mutateAsync({ categoryId: r.id, amount })
-                  }
+            >
+              <span
+                className="grid size-7 place-items-center rounded-full"
+                style={{
+                  background: `color-mix(in oklab, ${r.color} 14%, transparent)`,
+                }}
+              >
+                <i
+                  className={cn(r.icon, "text-[15px]")}
+                  style={{ color: r.color }}
+                  aria-hidden
                 />
               </span>
-            </span>
-            <div className="col-[2/4] h-1 overflow-hidden rounded-full bg-(--p-track)">
+              {/* Wraps the "over" note under the name on narrow screens instead of squeezing the name away. */}
+              <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-sm">
+                <span className="max-w-full truncate">{r.name}</span>
+                {r.over && (
+                  <span className="shrink-0 text-xs whitespace-nowrap text-(--p-warn)">
+                    {formatINR(r.spent - r.budget)} over
+                  </span>
+                )}
+              </span>
+              <span className="flex items-center gap-1 whitespace-nowrap">
+                <span className="font-medium">{formatINR(r.spent)}</span>
+                <span className="text-xs text-(--p-fg3)">
+                  {r.budget > 0 ? "of" : "·"}
+                </span>
+                <span className="text-xs text-(--p-fg3)">
+                  <AmountEdit
+                    value={r.budget}
+                    label={`${r.name} budget`}
+                    emptyText="Set budget"
+                    onSave={(amount) =>
+                      save.mutateAsync({ categoryId: r.id, amount })
+                    }
+                  />
+                </span>
+              </span>
+              {/* No budget, nothing to measure against: skip the bar rather than show an empty one. */}
               <div
-                className="h-full rounded-full transition-[width] duration-500"
-                style={{
-                  width: `${r.pct}%`,
-                  background: r.over ? "var(--p-accent)" : r.color,
-                }}
-              />
+                className={cn(
+                  "col-[2/4] h-1 overflow-hidden rounded-full bg-(--p-track)",
+                  r.budget <= 0 && "hidden",
+                )}
+              >
+                <div
+                  className="h-full rounded-full transition-[width] duration-500"
+                  style={{
+                    width: `${r.pct}%`,
+                    background: r.over ? "var(--p-accent)" : r.color,
+                  }}
+                />
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </Panel>
   );

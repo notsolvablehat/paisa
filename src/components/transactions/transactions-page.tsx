@@ -1,7 +1,5 @@
 "use client";
 
-import type { SessionUser } from "@/components/dashboard/header";
-
 import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -23,12 +21,13 @@ import {
 } from "@/components/arc/sortable-data-table/sortable-data-table";
 import { Tooltip } from "@/components/arc/tooltip/tooltip";
 import { Button } from "@/components/arc/button/button";
-import { AppShell } from "@/components/dashboard/app-shell";
+import { LoadFailed, useAppData } from "@/components/dashboard/app-shell";
 import { CategoryDonut } from "@/components/dashboard/category-donut";
 import {
   Chip,
   EmptyState,
   Panel,
+  Spinner,
   Stat,
 } from "@/components/dashboard/primitives";
 import { useLedger } from "@/hooks/use-dashboard";
@@ -42,6 +41,7 @@ import {
   monthRange,
   parseISO,
   toISO,
+  todayISO,
 } from "@/lib/dates";
 import {
   formatINR,
@@ -55,12 +55,9 @@ import { useUI } from "@/stores/ui";
 
 const PAGE_SIZE = 25;
 
-export function TransactionsPage({ user }: { user: SessionUser }) {
-  return (
-    <AppShell page="transactions" user={user}>
-      {(data) => <TransactionsView data={data} />}
-    </AppShell>
-  );
+export function TransactionsPage() {
+  const { data, failed, retry } = useAppData();
+  return <TransactionsView data={data} failed={failed} retry={retry} />;
 }
 
 /* ───────────────────────── dates ⇄ picker ───────────────────────── */
@@ -120,14 +117,27 @@ type Row = {
 
 /* ───────────────────────── view ───────────────────────── */
 
-function TransactionsView({ data }: { data: DashboardData }) {
+/**
+ * Two requests feed this page: the dashboard (categories) and the ledger (rows). The title and
+ * date range need neither; the table and totals each show a spinner until their data is in.
+ */
+function TransactionsView({
+  data,
+  failed,
+  retry,
+}: {
+  data: DashboardData | undefined;
+  failed: boolean;
+  retry: () => void;
+}) {
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const openModal = useUI((s) => s.openModal);
   const onDelete = useDeleteSpend();
 
-  const today = data.today;
+  const today = data?.today ?? todayISO();
+  const categories = useMemo(() => data?.categories ?? [], [data]);
   const to = validISO(params.get("to")) ?? today;
   const from = validISO(params.get("from")) ?? addDays(to, -89);
   const ledger = useLedger(from, to);
@@ -141,8 +151,8 @@ function TransactionsView({ data }: { data: DashboardData }) {
   const [page, setPage] = useState(1);
 
   const catBy = useMemo(
-    () => new Map(data.categories.map((c) => [c.id, c])),
-    [data.categories],
+    () => new Map(categories.map((c) => [c.id, c])),
+    [categories],
   );
   const all = useMemo(() => ledger.data?.rows ?? [], [ledger.data]);
 
@@ -173,7 +183,7 @@ function TransactionsView({ data }: { data: DashboardData }) {
         id: "category",
         label: "Category",
         icon: <i className="ri-price-tag-3-line" aria-hidden />,
-        options: data.categories.map((c) => ({
+        options: categories.map((c) => ({
           value: c.id,
           label: c.name,
           hint: count((r) => r.categoryId === c.id),
@@ -208,7 +218,7 @@ function TransactionsView({ data }: { data: DashboardData }) {
         })),
       },
     ];
-  }, [all, data.categories]);
+  }, [all, categories]);
 
   /* Chips carry the option label; map back to a predicate. */
   const filtered = useMemo(() => {
@@ -293,6 +303,8 @@ function TransactionsView({ data }: { data: DashboardData }) {
     return { spent, received, byCat };
   }, [filtered]);
 
+  // Rows need category names, so the table waits for both requests.
+  const tableLoading = ledger.isPending || !data;
   const thisYear = today.slice(0, 4);
   const columns: DataColumn<Row>[] = [
     {
@@ -394,7 +406,7 @@ function TransactionsView({ data }: { data: DashboardData }) {
     },
   ];
 
-  const donut = data.categories
+  const donut = categories
     .filter((c) => (totals.byCat.get(c.id) ?? 0) > 0)
     .map((c) => ({
       key: c.id,
@@ -470,7 +482,9 @@ function TransactionsView({ data }: { data: DashboardData }) {
             />
           </div>
 
-          {ledger.isError ? (
+          {failed ? (
+            <LoadFailed onRetry={retry} />
+          ) : ledger.isError ? (
             <EmptyState
               scene="inbox"
               title="Couldn't load transactions"
@@ -484,7 +498,11 @@ function TransactionsView({ data }: { data: DashboardData }) {
                 </Button>
               }
             />
-          ) : !ledger.isPending && rows.length === 0 ? (
+          ) : tableLoading ? (
+            <div className="grid min-h-60 place-items-center">
+              <Spinner label="Loading transactions" />
+            </div>
+          ) : rows.length === 0 ? (
             <EmptyState
               scene="search"
               title={
@@ -545,36 +563,46 @@ function TransactionsView({ data }: { data: DashboardData }) {
           className="flex flex-col gap-4"
           aria-label="Totals for the filtered transactions"
         >
-          <Panel className="grid grid-cols-2 gap-x-4 gap-y-5">
-            <Stat
-              label="Spent"
-              value={formatTotalINR(totals.spent, formatRoundINR)}
-            />
-            <Stat
-              label="Received"
-              value={formatTotalINR(totals.received, formatRoundINR)}
-              tone={totals.received > 0 ? "pos" : undefined}
-            />
-            <Stat
-              label="Net"
-              value={
-                filtered.length === 0
-                  ? NO_DATA
-                  : `${totals.received - totals.spent < 0 ? "−" : "+"}${formatRoundINR(Math.abs(totals.received - totals.spent))}`
-              }
-              tone={
-                filtered.length === 0
-                  ? undefined
-                  : totals.received - totals.spent < 0
-                    ? "warn"
-                    : "pos"
-              }
-            />
-            <Stat label="Transactions" value={String(filtered.length)} />
-          </Panel>
+          {ledger.isPending ? (
+            <Panel className="grid min-h-36 place-items-center">
+              <Spinner label="Loading totals" />
+            </Panel>
+          ) : (
+            <Panel className="grid grid-cols-2 gap-x-4 gap-y-5">
+              <Stat
+                label="Spent"
+                value={formatTotalINR(totals.spent, formatRoundINR)}
+              />
+              <Stat
+                label="Received"
+                value={formatTotalINR(totals.received, formatRoundINR)}
+                tone={totals.received > 0 ? "pos" : undefined}
+              />
+              <Stat
+                label="Net"
+                value={
+                  filtered.length === 0
+                    ? NO_DATA
+                    : `${totals.received - totals.spent < 0 ? "−" : "+"}${formatRoundINR(Math.abs(totals.received - totals.spent))}`
+                }
+                tone={
+                  filtered.length === 0
+                    ? undefined
+                    : totals.received - totals.spent < 0
+                      ? "warn"
+                      : "pos"
+                }
+              />
+              <Stat label="Transactions" value={String(filtered.length)} />
+            </Panel>
+          )}
           <Panel className="min-w-0">
             <h2 className="mb-3 text-sm font-medium">Spent by category</h2>
-            {donut.length === 0 ? (
+            {tableLoading ? (
+              <div className="grid min-h-48 place-items-center">
+                <Spinner label="Loading categories" />
+              </div>
+            ) : donut.length === 0 ? (
               <EmptyState scene="search" compact title="No spends here" />
             ) : (
               <CategoryDonut

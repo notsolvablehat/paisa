@@ -310,3 +310,40 @@ export function TapOrClick({ lower = false }: { lower?: boolean }) {
     </>
   );
 }
+
+/** Small ring spinner for a part of the page still waiting on its data. */
+export function Spinner({
+  className,
+  label = "Loading",
+}: {
+  className?: string;
+  label?: string;
+}) {
+  return (
+    <span
+      role="status"
+      aria-label={label}
+      className={cn("inline-grid place-items-center", className)}
+    >
+      <span
+        aria-hidden
+        className="size-5 animate-spin rounded-full border-2 border-(--p-line) border-t-(--p-fg2) motion-reduce:animate-[spin_1.6s_linear_infinite]"
+      />
+    </span>
+  );
+}
+
+/** A panel that holds a spinner until its data arrives. Pass the height the real content takes. */
+export function LoadingPanel({
+  className,
+  label,
+}: {
+  className?: string;
+  label?: string;
+}) {
+  return (
+    <Panel className={cn("grid min-h-40 place-items-center", className)}>
+      <Spinner label={label} />
+    </Panel>
+  );
+}

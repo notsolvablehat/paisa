@@ -97,7 +97,7 @@ export const verification = pgTable(
 
 /* ───────────────────────────────── App data ───────────────────────────────── */
 
-export const incomeSource = pgEnum("income_source", ["Salary", "Freelance", "Side projects", "Other"]);
+export const incomeSource = pgEnum("income_source", ["Salary", "Freelance", "Side projects", "Other", "Loan"]);
 export const recurrence = pgEnum("recurrence", ["Once", "Monthly", "Yearly"]);
 
 /** One row per user: budgets + a balance adjustment (opening balance). */
@@ -231,6 +231,8 @@ export const goal = pgTable(
     name: text("name").notNull(),
     target: paise("target").notNull(),
     monthly: paise("monthly").notNull(),
+    /** Set while the goal is paused: it stays listed but its monthly amount isn't set aside. Goals are never deleted. */
+    pausedAt: timestamp("paused_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [

@@ -32,6 +32,8 @@ export interface BarChartProps {
   categoryLabel?: string;
   /** Draws the average as a reference line that springs to each new range. */
   showAverage?: boolean;
+  /** Overrides the plain mean of the bars, e.g. when the last bar is a period still in progress. */
+  average?: number;
   /** Plot height in pixels. */
   height?: number;
   formatValue?: (value: number) => string;
@@ -226,14 +228,14 @@ function useReducedMotionSafe() {
   return !!useReducedMotion() && hydrated;
 }
 
-export function BarChart({ data, label, period, unit = "", averageLabel = "Daily average", valueLabel = "Total", categoryLabel = "Day", showAverage = true, height = 176, formatValue = value => grouped.format(value) }: BarChartProps) {
+export function BarChart({ data, label, period, unit = "", averageLabel = "Daily average", valueLabel = "Total", categoryLabel = "Day", showAverage = true, average: averageOverride, height = 176, formatValue = value => grouped.format(value) }: BarChartProps) {
   const reduced = useReducedMotionSafe();
   const figure = useRef<HTMLElement>(null);
   const plot = useRef<HTMLDivElement>(null);
   const inView = useInView(figure, { once: true, amount: .35 });
   const titleId = useId();
   const count = Math.max(data.length, 1), last = data.length - 1;
-  const average = data.length ? data.reduce((sum, item) => sum + item.value, 0) / data.length : 0;
+  const average = averageOverride ?? (data.length ? data.reduce((sum, item) => sum + item.value, 0) / data.length : 0);
   const peak = data.reduce((max, item) => Math.max(max, item.value), 0);
   const { top, ticks } = useMemo(() => scaleFor(peak), [peak]);
   const signature = data.map(item => item.key).join("|");

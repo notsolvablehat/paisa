@@ -253,7 +253,10 @@ export function MorphSelect({ label, hideLabel = false, items, value, defaultVal
     setQuery(seed);
     setActive(focus !== undefined ? focus : selected);
     scrollIntent.current = true;
-    pendingFocus.current = canSearch ? "input" : "trigger";
+    // paisa: on touch screens don't jump into the search field. Focusing it pops the keyboard over
+    // the list you were about to tap; the field is still there to tap if you want to search.
+    const touch = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+    pendingFocus.current = canSearch ? (touch ? null : "input") : "trigger";
     setAnnouncement("");
     setOpen(true);
   };

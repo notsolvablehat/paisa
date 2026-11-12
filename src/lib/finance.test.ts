@@ -40,7 +40,7 @@ function fixture(over: Partial<DashboardData> = {}): DashboardData {
       { id: "i2", source: "Freelance", amount: P(4000), note: "", date: "2026-11-05" },
     ],
     recentIncome: [],
-    goals: [{ id: "g1", name: "MacBook", target: P(99900), monthly: P(465), assigned: P(38000), contributedInMonth: 0 }],
+    goals: [{ id: "g1", name: "MacBook", target: P(99900), monthly: P(465), assigned: P(38000), contributedInMonth: 0, paused: false }],
     bills: [
       { id: "b1", name: "Water", amount: P(180), dueOn: "2026-11-08", recurrence: "Monthly", categoryId: "bills", paid: false },
       { id: "b2", name: "Power", amount: P(1420), dueOn: "2026-11-13", recurrence: "Monthly", categoryId: "bills", paid: false },
@@ -125,14 +125,25 @@ describe("safe to spend", () => {
     expect(s.daysLeft).toBe(20);
     // floor((15794 − 1600 − 465) / 20) = 686
     expect(s.safe).toBe(P(686));
+    expect(s.short).toBe(0);
     expect(s.usedPct).toBe(47);
     expect(s.elapsedPct).toBe(33);
     expect(s.free).toBe(P(62400 - 38000));
   });
 
+  it("leaves paused goals out of safe to spend", () => {
+    const d = fixture();
+    const s = computeSummary({ ...d, goals: d.goals.map((g) => ({ ...g, paused: true })) });
+    expect(s.goalTop).toBe(0);
+    // floor((15794 − 1600) / 20) = 709
+    expect(s.safe).toBe(P(709));
+  });
+
   it("never goes negative", () => {
     const s = computeSummary(fixture({ settings: { monthlyBudget: P(1000), dailyBudget: P(100), hardLimit: P(2000) } }));
     expect(s.safe).toBe(0);
+    // budget left 1000 − 14206 = −13206, minus bills 1600 and goals 465
+    expect(s.short).toBe(P(13206 + 1600 + 465));
   });
 
   it("has no days left for a past month", () => {
@@ -148,7 +159,8 @@ describe("safe to spend", () => {
     expect(s.daily[0]).toBe(P(7420));
     expect(s.daily[9]).toBe(P(6786));
     expect(s.todaySpent).toBe(0);
-    expect(s.avgDaily).toBe(P(14206) / 10);
+    // 11 Nov: averaged over 1–11 Nov, today included (matches the chart).
+    expect(s.avgDaily).toBe(P(14206) / 11);
   });
 });
 
@@ -208,6 +220,8 @@ describe("chart", () => {
     const c = buildChart("week", d, s, fmt);
     expect(c.bars.map((b) => b.title)).toEqual(["1–7 Nov", "8–14 Nov", "15–21 Nov", "22–28 Nov", "29–30 Nov"]);
     expect(c.bars.reduce((a, b) => a + b.value, 0)).toBe(s.spent);
+    // A part-week doesn't drag the average down: it's the daily average × 7.
+    expect(c.average).toBe(s.avgDaily * 7);
   });
   it("month view totals 12 months", () => {
     const d = fixture();

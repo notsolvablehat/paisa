@@ -42,7 +42,8 @@ npm run db:seed:history -- <email>   # REPLACES that account's spends/income/bil
 
 ```
 src/app/page.tsx         public landing page (static, SEO copy + JSON-LD; components/landing/)
-src/app/overview/, transactions/, reminders/   app pages: <Suspense> + getSessionUser() → client page (noindex)
+src/app/(app)/layout.tsx   signed-in pages share it: <Suspense> + getSessionUser() → AppFrame (header, dialogs, dashboard data) mounted once
+src/app/(app)/overview/, transactions/, reminders/   thin pages → client page component (noindex); loading.tsx = content-area spinner
 src/app/robots.ts, sitemap.ts, llms.txt/, opengraph-image.tsx, manifest.ts   SEO / sharing; facts in src/lib/site.ts
 src/app/(auth)/sign-in, sign-up               auth-shell.tsx (decor) + auth-forms.tsx
 src/app/api/dashboard   GET ?month=YYYY-MM → DashboardData (one month + history)
@@ -93,7 +94,8 @@ scripts/seed-demo.ts, seed-history.ts
 
 ## Client data flow
 
-- Pages render `<AppShell page=…>{(data, summary) => …}</AppShell>`. AppShell loads `useDashboard(month)` (overview: store month; other pages: current month) for header search, QuickAdd and GoalDialog.
+- `AppFrame` (components/dashboard/app-shell.tsx) lives in the `(app)` layout, so the header stays mounted across navigation; the active page comes from the URL (`pageFromPath`) and the nav highlights the clicked item at once. It loads `useDashboard(month)` (overview: store month; other pages: current month) and pages read it with `useAppData()` → `{ data, summary, failed, retry }`.
+- **No whole-page skeletons.** `data` is undefined until the first response: render what doesn't need it (titles, pickers, search) and give each data-driven card its own `Spinner` / `LoadingPanel` (primitives), per request (e.g. Transactions: table waits on ledger + dashboard, totals on ledger). `LoadFailed` for a failed first load.
 - Mutations: `useAction(serverAction, { success })` → toasts errors, invalidates `["dashboard"]`. Any new query key must start with `"dashboard"` (e.g. `["dashboard","ledger",from,to]`) so mutations refresh it.
 - Sessions read on the server must sit inside `<Suspense>` (cacheComponents). 401 from the API → AppShell redirects to `/sign-in`.
 
@@ -114,6 +116,7 @@ scripts/seed-demo.ts, seed-history.ts
 - Local fixes to re-apply if a component is re-installed:
   - `dialog`, `tabs`: `render={<motion.div/>}` → `asChild` + `<motion.div>` child (Radix 1.3 has no `render`). `tooltip`: Trigger needs `asChild`.
   - `date-range-picker`: a document-level Escape listener while open (opening leaves focus on `<body>`, so the root's onKeyDown missed it).
+  - `morph-select.tsx`: opening a searchable list doesn't focus the search field on touch screens (`pointer: coarse`), so the keyboard doesn't cover the list.
   - `morph-select.module.css`: `.options`/`.group` `grid-template-columns: minmax(0,1fr)` and `.option { min-width: 0 }` so long labels/meta don't overflow the panel.
 - `next.config.ts` keeps `@tailwindcss/turbopack` off `*.module.css` (uiarc modules use `:global()`).
 - `DonutChart` root is a size container: don't put it in an `items-center` flex column (it collapses to 0 width).

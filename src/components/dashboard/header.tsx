@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { flushSync } from "react-dom";
-import { useMemo, useRef, useSyncExternalStore } from "react";
+import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/arc/button/button";
 import {
   ExpandingSearch,
@@ -48,6 +48,14 @@ const NAV: { page: Page; href: string; label: string; icon: string }[] = [
     icon: "ri-calendar-event-line",
   },
 ];
+
+/** Which nav item a path belongs to (the layout is shared, so the header reads it from the URL). */
+export function pageFromPath(path: string): Page {
+  return (
+    NAV.find((n) => n.href !== APP_HOME && path.startsWith(n.href))?.page ??
+    "overview"
+  );
+}
 
 const noop = () => () => {};
 
@@ -99,57 +107,68 @@ export function Header({
   user,
   page,
 }: {
-  data: DashboardData;
+  /** Undefined while the first load is in flight: search waits, everything else works. */
+  data: DashboardData | undefined;
   user: SessionUser;
   page: Page;
 }) {
+  // Highlight the clicked item straight away; the URL catches up when the page has rendered.
+  const pathname = usePathname();
+  const [pending, setPending] = useState<{ from: string; to: Page } | null>(
+    null,
+  );
+  const shown = pending && pending.from === pathname ? pending.to : page;
   const router = useRouter();
   const openModal = useUI((s) => s.openModal);
   const setWelcomeOpen = useUI((s) => s.setWelcomeOpen);
   const { preference, change } = useThemeToggle();
 
   const catBy = useMemo(
-    () => new Map(data.categories.map((c) => [c.id, c])),
-    [data.categories],
+    () => new Map((data?.categories ?? []).map((c) => [c.id, c])),
+    [data],
   );
   const searchItems = useMemo<ExpandingSearchItem[]>(
-    () => [
-      ...data.transactions.map((t) => {
-        const c = catBy.get(t.categoryId);
-        return {
-          id: `tx:${t.id}`,
-          title: t.note || c?.name || "Spend",
-          meta: `${formatINR(t.amount)} · ${dayMonth(t.date)} · ${c?.name ?? ""}`,
-          group: "Spends this month",
-          icon: (
-            <i
-              className={c?.icon ?? "ri-receipt-line"}
-              style={{ color: c?.color }}
-              aria-hidden
-            />
-          ),
-          keywords: [c?.name ?? ""],
-        };
-      }),
-      ...data.bills.map((b) => ({
-        id: `bill:${b.id}`,
-        title: b.name,
-        meta: `${formatINR(b.amount)} · due ${dayMonth(b.dueOn)}${b.paid ? " · paid" : ""}`,
-        group: "Bills",
-        icon: <i className="ri-calendar-event-line" aria-hidden />,
-      })),
-      ...data.goals.map((g) => ({
-        id: `goal:${g.id}`,
-        title: g.name,
-        meta: `${formatINR(g.assigned)} of ${formatINR(g.target)}`,
-        group: "Goals",
-        icon: <i className="ri-flag-2-line" aria-hidden />,
-      })),
-    ],
+    () =>
+      !data
+        ? []
+        : [
+            ...data.transactions.map((t) => {
+              const c = catBy.get(t.categoryId);
+              return {
+                id: `tx:${t.id}`,
+                title: t.note || c?.name || "Spend",
+                meta: `${formatINR(t.amount)} · ${dayMonth(t.date)} · ${c?.name ?? ""}`,
+                group: "Spends this month",
+                icon: (
+                  <i
+                    className={c?.icon ?? "ri-receipt-line"}
+                    style={{ color: c?.color }}
+                    aria-hidden
+                  />
+                ),
+                keywords: [c?.name ?? ""],
+              };
+            }),
+            ...data.bills.map((b) => ({
+              id: `bill:${b.id}`,
+              title: b.name,
+              meta: `${formatINR(b.amount)} · due ${dayMonth(b.dueOn)}${b.paid ? " · paid" : ""}`,
+              group: "Bills",
+              icon: <i className="ri-calendar-event-line" aria-hidden />,
+            })),
+            ...data.goals.map((g) => ({
+              id: `goal:${g.id}`,
+              title: g.name,
+              meta: `${formatINR(g.assigned)} of ${formatINR(g.target)}`,
+              group: "Goals",
+              icon: <i className="ri-flag-2-line" aria-hidden />,
+            })),
+          ],
     [data, catBy],
   );
 
   const onSelect = (item: ExpandingSearchItem) => {
+    if (!data) return;
     const [kind, id] = item.id.split(":");
     if (kind === "tx") {
       const t = data.transactions.find((x) => x.id === id);
@@ -177,11 +196,14 @@ export function Header({
         <Link
           key={n.page}
           href={n.href}
-          aria-current={page === n.page ? "page" : undefined}
+          onClick={() => {
+            if (n.page !== page) setPending({ from: pathname, to: n.page });
+          }}
+          aria-current={shown === n.page ? "page" : undefined}
           className={cn(
             "flex items-center gap-1.5 rounded-full font-medium transition-colors",
             compact ? "h-9 px-3 text-[13px]" : "h-9 px-3.5 text-sm",
-            page === n.page
+            shown === n.page
               ? "bg-(--p-surface2) text-(--p-ink)"
               : "text-(--p-fg3) hover:text-(--p-ink)",
           )}
@@ -253,6 +275,7 @@ export function Header({
             <Button
               size="sm"
               data-tour="add"
+              disabled={!data}
               onClick={() => openModal("Spend")}
             >
               <i className="ri-add-line text-[16px]" aria-hidden />

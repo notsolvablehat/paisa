@@ -45,6 +45,20 @@ function GoalForm({ onDone }: { onDone: () => void }) {
       }}
       className="flex flex-col gap-4"
     >
+      <div
+        role="note"
+        className="flex items-start gap-2 rounded-[var(--radius-control)] border border-(--p-warnLine) bg-(--p-warnTint) px-3.5 py-2.5 text-[13px] leading-normal text-(--p-warn)"
+      >
+        <i
+          className="ri-error-warning-line text-[16px] leading-5"
+          aria-hidden
+        />
+        <span>
+          Goals can&apos;t be deleted, so pick one you mean. If you need a
+          break, you can pause it: a paused goal isn&apos;t counted in
+          today&apos;s safe to spend.
+        </span>
+      </div>
       <Input
         label="What are you saving for?"
         autoFocus

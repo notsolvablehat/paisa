@@ -13,6 +13,8 @@ export type Goal = {
   assigned: number;
   /** Contributed during the viewed month. */
   contributedInMonth: number;
+  /** Paused goals stay listed but aren't counted in safe-to-spend and take no new money. */
+  paused: boolean;
 };
 export type Bill = {
   id: string;

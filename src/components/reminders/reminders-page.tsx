@@ -1,7 +1,5 @@
 "use client";
 
-import type { SessionUser } from "@/components/dashboard/header";
-
 import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/arc/badge/badge";
@@ -24,12 +22,13 @@ import {
   type SortState,
 } from "@/components/arc/sortable-data-table/sortable-data-table";
 import { Tooltip } from "@/components/arc/tooltip/tooltip";
-import { AppShell } from "@/components/dashboard/app-shell";
+import { LoadFailed, useAppData } from "@/components/dashboard/app-shell";
 import { CategoryDonut } from "@/components/dashboard/category-donut";
 import {
   Chip,
   EmptyState,
   Panel,
+  Spinner,
   Stat,
 } from "@/components/dashboard/primitives";
 import { useAction, useReminders, useToast } from "@/hooks/use-dashboard";
@@ -43,6 +42,7 @@ import {
   isoToLocalDate,
   localDateToISO,
   monthRange,
+  todayISO,
 } from "@/lib/dates";
 import { formatINR, formatRoundINR, formatTotalINR } from "@/lib/money";
 import type { DashboardData, ReminderRow } from "@/lib/types";
@@ -53,12 +53,9 @@ import { ReminderDialog } from "./reminder-dialog";
 
 const PAGE_SIZE = 25;
 
-export function RemindersPage({ user }: { user: SessionUser }) {
-  return (
-    <AppShell page="reminders" user={user}>
-      {(data) => <RemindersView data={data} />}
-    </AppShell>
-  );
+export function RemindersPage() {
+  const { data, failed, retry } = useAppData();
+  return <RemindersView data={data} failed={failed} retry={retry} />;
 }
 
 type Status = "overdue" | "soon" | "upcoming" | "paid";
@@ -122,7 +119,16 @@ function relative(r: Row, today: string): string {
   return `in ${d} days`;
 }
 
-function RemindersView({ data }: { data: DashboardData }) {
+/** Like Transactions: the table and totals each wait on their own request; the rest renders at once. */
+function RemindersView({
+  data,
+  failed,
+  retry,
+}: {
+  data: DashboardData | undefined;
+  failed: boolean;
+  retry: () => void;
+}) {
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -132,10 +138,13 @@ function RemindersView({ data }: { data: DashboardData }) {
   const remove = useAction(deleteBill);
   const [editing, setEditing] = useState<ReminderRow | null>(null);
 
-  const today = data.today;
+  const today = data?.today ?? todayISO();
+  const categories = useMemo(() => data?.categories ?? [], [data]);
   const from = validISO(params.get("from")) ?? addDays(today, -30);
   const to = validISO(params.get("to")) ?? addDays(today, 90);
   const q = useReminders(from, to);
+  // Rows need category names, so the table waits for both requests.
+  const tableLoading = q.isPending || !data;
 
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<FilterChip[]>([]);
@@ -146,8 +155,8 @@ function RemindersView({ data }: { data: DashboardData }) {
   const [page, setPage] = useState(1);
 
   const catBy = useMemo(
-    () => new Map(data.categories.map((c) => [c.id, c])),
-    [data.categories],
+    () => new Map(categories.map((c) => [c.id, c])),
+    [categories],
   );
   const all = useMemo<Row[]>(() => {
     const list = q.data?.rows ?? [];
@@ -207,7 +216,7 @@ function RemindersView({ data }: { data: DashboardData }) {
         id: "category",
         label: "Category",
         icon: <i className="ri-price-tag-3-line" aria-hidden />,
-        options: data.categories
+        options: categories
           .filter((c) => all.some((r) => r.r.categoryId === c.id))
           .map((c) => ({
             value: c.id,
@@ -219,7 +228,7 @@ function RemindersView({ data }: { data: DashboardData }) {
           })),
       },
     ];
-  }, [all, data.categories]);
+  }, [all, categories]);
 
   const filtered = useMemo(() => {
     const preds: ((r: Row) => boolean)[] = [];
@@ -462,7 +471,7 @@ function RemindersView({ data }: { data: DashboardData }) {
     },
   ];
 
-  const donut = data.categories
+  const donut = categories
     .filter((c) => (totals.byCat.get(c.id) ?? 0) > 0)
     .map((c) => ({
       key: c.id,
@@ -545,7 +554,9 @@ function RemindersView({ data }: { data: DashboardData }) {
             />
           </div>
 
-          {q.isError ? (
+          {failed ? (
+            <LoadFailed onRetry={retry} />
+          ) : q.isError ? (
             <EmptyState
               scene="inbox"
               title="Couldn't load reminders"
@@ -559,7 +570,11 @@ function RemindersView({ data }: { data: DashboardData }) {
                 </Button>
               }
             />
-          ) : !q.isPending && filtered.length === 0 ? (
+          ) : tableLoading ? (
+            <div className="grid min-h-60 place-items-center">
+              <Spinner label="Loading reminders" />
+            </div>
+          ) : filtered.length === 0 ? (
             <EmptyState
               scene="inbox"
               title={
@@ -627,26 +642,32 @@ function RemindersView({ data }: { data: DashboardData }) {
         </Panel>
 
         <aside className="flex flex-col gap-4" aria-label="Reminder totals">
-          <Panel className="grid grid-cols-2 gap-x-4 gap-y-5">
-            <Stat
-              label={`Overdue${totals.overdueN ? ` · ${totals.overdueN}` : ""}`}
-              value={formatTotalINR(totals.overdue, formatRoundINR)}
-              tone={totals.overdue > 0 ? "warn" : undefined}
-            />
-            <Stat
-              label="Due in 14 days"
-              value={formatTotalINR(totals.soon, formatRoundINR)}
-            />
-            <Stat
-              label="Paid in range"
-              value={formatTotalINR(totals.paid, formatRoundINR)}
-              tone={totals.paid > 0 ? "pos" : undefined}
-            />
-            <Stat
-              label="Recurring / month"
-              value={formatTotalINR(totals.perMonth, formatRoundINR)}
-            />
-          </Panel>
+          {q.isPending ? (
+            <Panel className="grid min-h-36 place-items-center">
+              <Spinner label="Loading totals" />
+            </Panel>
+          ) : (
+            <Panel className="grid grid-cols-2 gap-x-4 gap-y-5">
+              <Stat
+                label={`Overdue${totals.overdueN ? ` · ${totals.overdueN}` : ""}`}
+                value={formatTotalINR(totals.overdue, formatRoundINR)}
+                tone={totals.overdue > 0 ? "warn" : undefined}
+              />
+              <Stat
+                label="Due in 14 days"
+                value={formatTotalINR(totals.soon, formatRoundINR)}
+              />
+              <Stat
+                label="Paid in range"
+                value={formatTotalINR(totals.paid, formatRoundINR)}
+                tone={totals.paid > 0 ? "pos" : undefined}
+              />
+              <Stat
+                label="Recurring / month"
+                value={formatTotalINR(totals.perMonth, formatRoundINR)}
+              />
+            </Panel>
+          )}
           <Panel className="min-w-0">
             <h2 className="mb-1 text-sm font-medium">
               Fixed costs by category
@@ -654,7 +675,11 @@ function RemindersView({ data }: { data: DashboardData }) {
             <p className="mb-3 text-xs text-(--p-fg3)">
               Monthly and yearly reminders, per month.
             </p>
-            {donut.length === 0 ? (
+            {tableLoading ? (
+              <div className="grid min-h-48 place-items-center">
+                <Spinner label="Loading categories" />
+              </div>
+            ) : donut.length === 0 ? (
               <EmptyState
                 scene="inbox"
                 compact
@@ -673,7 +698,7 @@ function RemindersView({ data }: { data: DashboardData }) {
 
       <ReminderDialog
         reminder={editing}
-        categories={data.categories}
+        categories={categories}
         onClose={() => setEditing(null)}
       />
     </>

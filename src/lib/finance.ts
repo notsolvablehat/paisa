@@ -42,11 +42,14 @@ export function computeSummary(d: DashboardData) {
       .filter((b) => !b.paid && b.dueOn <= end && (phase !== "future" || b.dueOn >= start))
       .map((b) => b.amount),
   );
-  const goalTop = sum(d.goals.map(goalDueThisMonth));
+  // Paused goals take nothing this month.
+  const goalTop = sum(d.goals.filter((g) => !g.paused).map(goalDueThisMonth));
 
   const pool = budgetLeft - billsDue - goalTop;
   // Floor to whole rupees so we never suggest more than is actually safe.
   const safe = daysLeft > 0 ? Math.max(0, Math.floor(pool / daysLeft / 100) * 100) : 0;
+  /** How far budget-left falls below bills + goal set-asides (0 when it covers them). */
+  const short = Math.max(0, -pool);
 
   const earmarked = sum(d.goals.map((g) => g.assigned));
 
@@ -59,11 +62,13 @@ export function computeSummary(d: DashboardData) {
     B.monthlyBudget > 0 ? Math.min(100, Math.round((spent / B.monthlyBudget) * 100)) : spent > 0 ? 100 : 0;
   const elapsedPct = Math.round((elapsedDays / dim) * 100);
   const todaySpent = phase === "current" ? daily[todayDay - 1] : 0;
-  const avgDaily = elapsedDays > 0 ? sum(daily.slice(0, elapsedDays)) / elapsedDays : 0;
+  // Days so far including today — the same days the spending chart averages over.
+  const daysSoFar = phase === "current" ? todayDay : phase === "past" ? dim : 0;
+  const avgDaily = daysSoFar > 0 ? sum(daily.slice(0, daysSoFar)) / daysSoFar : 0;
 
   return {
     phase, dim, T, elapsedDays, daysLeft,
-    spent, incomeTotal, budgetLeft, billsDue, goalTop, safe,
+    spent, incomeTotal, budgetLeft, billsDue, goalTop, safe, short,
     balance: d.balance, earmarked, free: d.balance - earmarked,
     daily, incDaily, usedPct, elapsedPct, todaySpent, avgDaily,
   };
@@ -122,6 +127,8 @@ export type Chart = {
   caption: string;
   total: number;
   incomeMarks: { index: number; value: number }[];
+  /** Headline average for day/week bars, in paise. Per day over the days so far, so a part-week never drags it down. */
+  average?: number;
 };
 
 export function buildChart(range: Range, d: DashboardData, s: Summary, fmt: (p: number) => string): Chart {
@@ -150,6 +157,7 @@ export function buildChart(range: Range, d: DashboardData, s: Summary, fmt: (p: 
       budgetLineLabel: `Daily budget ${fmt(B.dailyBudget)}`,
       caption: `Spent in ${monthLong}`,
       total: s.spent,
+      average: s.avgDaily,
       incomeMarks: s.incDaily.flatMap((v, i) => (v ? [{ index: i, value: v }] : [])),
     };
   }
@@ -175,6 +183,7 @@ export function buildChart(range: Range, d: DashboardData, s: Summary, fmt: (p: 
       budgetLineLabel: `Weekly pace ${fmt(B.dailyBudget * 7)}`,
       caption: `Spent in ${monthLong}`,
       total: s.spent,
+      average: s.avgDaily * 7,
       incomeMarks: [],
     };
   }

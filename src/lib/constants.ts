@@ -16,7 +16,8 @@ export const DEFAULT_CATEGORIES = [
 /** Demo-seed budgets; new accounts start at zero. */
 export const DEFAULT_BUDGETS = { monthly: 30000, daily: 1000, hard: 34000 } as const;
 
-export const INCOME_SOURCES = ["Salary", "Freelance", "Side projects", "Other"] as const;
+/** "Loan" is money borrowed: adding one also sets up its repayment reminders. */
+export const INCOME_SOURCES = ["Salary", "Freelance", "Side projects", "Other", "Loan"] as const;
 export type IncomeSource = (typeof INCOME_SOURCES)[number];
 
 export const SOURCE_META: Record<IncomeSource, { color: string; icon: string }> = {
@@ -24,6 +25,7 @@ export const SOURCE_META: Record<IncomeSource, { color: string; icon: string }> 
   Freelance: { color: "#E8532F", icon: "ri-pen-nib-line" },
   "Side projects": { color: "#28A984", icon: "ri-flask-line" },
   Other: { color: "#2B95DE", icon: "ri-more-line" },
+  Loan: { color: "#57534E", icon: "ri-hand-coin-line" },
 };
 
 export const RECURRENCES = ["Once", "Monthly", "Yearly"] as const;
